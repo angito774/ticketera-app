@@ -1,4 +1,8 @@
-import type { Event, EventCategory } from "@/modules/events/types/event.types";
+import type {
+  Event,
+  EventCategory,
+  EventDetail,
+} from "@/modules/events/types/event.types";
 
 const EVENTS: Event[] = [
   {
@@ -123,6 +127,91 @@ const EVENTS: Event[] = [
   },
 ];
 
+type EventExtraDetail = Omit<EventDetail, keyof Event>;
+
+const EVENT_DETAILS: Record<Event["id"], EventExtraDetail> = {
+  "concert-01": {
+    description:
+      "Bad Bunny llega a Lima con su gira mundial: más de dos horas de show con los éxitos de su último álbum, pantallas 360° y un escenario central que recorre todo el campo. La entrada incluye acceso a la zona elegida y a los puestos de comida del estadio.",
+    doorsOpenAt: "2026-11-14T17:00:00-05:00",
+    minAge: 12,
+    address: "Calle José Díaz s/n, Cercado de Lima",
+    layoutId: "stadium",
+  },
+  "concert-02": {
+    description:
+      "Gian Marco repasa sus canciones más queridas acompañado por la Orquesta Sinfónica Nacional, con nuevos arreglos pensados para el Gran Teatro Nacional. Un concierto íntimo de aproximadamente 100 minutos.",
+    doorsOpenAt: "2026-10-03T20:00:00-05:00",
+    minAge: null,
+    address: "Av. Javier Prado Este 2225, San Borja",
+    layoutId: "theater",
+  },
+  "concert-03": {
+    description:
+      "El festival de rock más grande del país vuelve a la Costa Verde con dos escenarios, más de 15 bandas nacionales e internacionales y zona de food trucks. Duración aproximada: 8 horas.",
+    doorsOpenAt: "2026-11-28T15:00:00-05:00",
+    minAge: 16,
+    address: "Circuito de Playas s/n, Magdalena del Mar",
+    layoutId: "stadium",
+  },
+  "concert-04": {
+    description:
+      "Wos presenta su gira latinoamericana en Arequipa: rap, rock y freestyle en vivo con banda completa. Show de aproximadamente 90 minutos.",
+    doorsOpenAt: "2026-12-05T18:30:00-05:00",
+    minAge: 14,
+    address: "Av. Parra 300, Arequipa",
+    layoutId: "stadium",
+  },
+  "concert-05": {
+    description:
+      "Una noche de boleros clásicos interpretados por una orquesta de 20 músicos y voces invitadas, en el Centro de Convenciones de Cusco.",
+    doorsOpenAt: "2026-10-18T20:00:00-05:00",
+    minAge: null,
+    address: "Av. El Sol 604, Cusco",
+    layoutId: "theater",
+  },
+  "concert-06": {
+    description:
+      "Selvámonos llega a Huancayo con un line-up de música alternativa, electrónica y fusión andina, en una jornada al aire libre de 10 horas.",
+    doorsOpenAt: "2027-01-16T14:00:00-05:00",
+    minAge: 16,
+    address: "Av. Huancavelica 1000, Huancayo",
+    layoutId: "stadium",
+  },
+  "theater-01": {
+    description:
+      "El musical más longevo de Broadway llega al Gran Teatro Nacional con una producción íntegramente en español, orquesta en vivo y la escenografía original. Duración: 2 h 30 min con intermedio.",
+    doorsOpenAt: "2026-11-07T18:45:00-05:00",
+    minAge: 7,
+    address: "Av. Javier Prado Este 2225, San Borja",
+    layoutId: "theater",
+  },
+  "theater-02": {
+    description:
+      "La Compañía Nacional de Teatro presenta una versión contemporánea de Hamlet, con un elenco de 12 actores. Duración: 2 h 10 min con intermedio.",
+    doorsOpenAt: "2026-10-24T19:30:00-05:00",
+    minAge: 14,
+    address: "Jr. Ica 377, Cercado de Lima",
+    layoutId: "theater",
+  },
+  "theater-03": {
+    description:
+      "El Ballet Municipal interpreta el clásico de Tchaikovsky con orquesta en vivo. Duración: 2 h con intermedio.",
+    doorsOpenAt: "2026-12-12T18:15:00-05:00",
+    minAge: null,
+    address: "Calle Mercaderes 239, Arequipa",
+    layoutId: "theater",
+  },
+  "theater-04": {
+    description:
+      "Cuatro comediantes, cero guion: una noche de stand up e improvisación con el público. Duración aproximada: 100 minutos.",
+    doorsOpenAt: "2026-11-21T20:15:00-05:00",
+    minAge: 18,
+    address: "Jr. Pizarro 526, Trujillo",
+    layoutId: "theater",
+  },
+};
+
 // Contrato del servicio: siempre devolver una copia, nunca la referencia interna a EVENTS.
 export function getAllEvents(): Event[] {
   return [...EVENTS];
@@ -134,4 +223,17 @@ export function getFeaturedEvents(): Event[] {
 
 export function getEventsByCategory(category: EventCategory): Event[] {
   return EVENTS.filter((event) => event.category === category);
+}
+
+export function getEventById(id: string): EventDetail | undefined {
+  const event = EVENTS.find((item) => item.id === id);
+  const detail = EVENT_DETAILS[id];
+  if (!event || !detail) return undefined;
+  return { ...event, ...detail };
+}
+
+export function getRelatedEvents(event: Event, limit = 4): Event[] {
+  return EVENTS.filter(
+    (item) => item.category === event.category && item.id !== event.id
+  ).slice(0, limit);
 }

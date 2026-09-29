@@ -19,27 +19,30 @@
 
 ### Color Palette
 
+> **v2 (2026-09-29, `docs/specs/tickets/purchase-flow.md`)**: the user chose to migrate from the original orange-primary palette to the indigo palette of the Claude Design mockups (Features 2–8). Indigo is the brand color; orange is reserved for purchase CTAs only.
+
 | Role | Hex | CSS Variable | Usage |
 |------|-----|--------------|-------|
-| Primary | `#EA580C` | `--color-primary` | Primary buttons, active nav/category state, price highlight |
-| On Primary | `#0F172A` | `--color-on-primary` | Text/icons on primary (verified ≥4.5:1) |
-| Secondary | `#F97316` | `--color-secondary` | Hover/lighter variant of primary, secondary outline buttons |
-| On Secondary | `#0F172A` | `--color-on-secondary` | |
-| Accent | `#2563EB` | `--color-accent` | Links, "Ver todos" CTAs, secondary badges (e.g. "Nuevo") — used sparingly, never as a second dominant color |
-| On Accent | `#FFFFFF` | `--color-on-accent` | |
-| Background | `#FFFFFF` | `--color-background` | Global page background (matches shadcn `neutral` base already set in `components.json`) |
-| Surface Warm | `#FFF7ED` | `--color-surface-warm` | Reserved for hero + promo banner sections only, never the whole page |
-| Foreground | `#0F172A` | `--color-foreground` | Body text |
-| Card | `#FFFFFF` | `--color-card` | |
-| Card Foreground | `#0F172A` | `--color-card-foreground` | |
-| Muted | `#F1F5F9` | `--color-muted` | Chips (inactive), subtle section backgrounds |
-| Muted Foreground | `#475569` | `--color-muted-foreground` | Meta text (date, venue, secondary labels) |
-| Border | `#E2E8F0` | `--color-border` | |
-| Destructive | `#DC2626` | `--color-destructive` | "Agotado" badge, error states |
-| On Destructive | `#FFFFFF` | `--color-on-destructive` | |
-| Ring | `#EA580C` | `--color-ring` | Focus ring (matches primary) |
+| Primary | `#4F46E5` | `--primary` | Brand, links, active nav/category, selected zone/seat |
+| On Primary | `#FFFFFF` | `--primary-foreground` | |
+| CTA | `#F97316` (hover `#EA580C`) | `--cta` / `--cta-hover` | Purchase CTAs only ("Comprar entradas", "Continuar", "Pagar") — `Button variant="cta"` |
+| On CTA | `#18181B` | `--cta-foreground` | Verified ≥4.5:1 on `#F97316` |
+| Secondary | `#F4F4F5` | `--secondary` | Neutral secondary buttons (shadcn semantics) |
+| Accent | `#EEF2FF` | `--accent` | Soft highlight: selected list row, menu hover |
+| On Accent | `#4338CA` | `--accent-foreground` | |
+| Warning | `#FFEDD5` / `#9A3412` | `--warning` / `--warning-foreground` | "Últimas entradas" badge |
+| Brand deep | `#1E1B4B` / `#E0E7FF` | `--brand-deep` / `--brand-deep-foreground` | Dark indigo panels (event detail hero) |
+| Background | `#FFFFFF` | `--background` | Page background |
+| Surface Warm | `#FFF7ED` | `--surface-warm` | Promo banner only |
+| Foreground | `#18181B` | `--foreground` | Body text |
+| Muted | `#F4F4F5` | `--muted` | Chips, subtle sections, sold-out zones, taken seats |
+| Muted Foreground | `#52525B` | `--muted-foreground` | Meta text |
+| Border / Input | `#E4E4E7` | `--border` / `--input` | |
+| Destructive | `#DC2626` | `--destructive` | "Agotado", errors |
+| Ring | `#818CF8` | `--ring` | Focus ring |
+| Zone scale | `#312E81` `#4F46E5` `#818CF8` `#A5B4FC` `#C7D2FE` | `--zone-1` … `--zone-5` | Venue map zones, 1 = most expensive. Text: `--zone-foreground-strong` (white) on 1–2, `--zone-foreground-soft` (`#1E1B4B`) on 3–5 |
 
-**Color notes:** event orange (energetic, matches Ticketmaster/Joinnus territory) as the single dominant brand color + one contained blue accent for links/secondary actions — deliberately **not** a multi-hue "rainbow" palette. Two hues + neutrals only, per the user's "moderno pero no sobrecargado" requirement.
+**Color notes:** one brand hue (indigo) + one action hue (orange, CTAs only) + zinc neutrals. Never use orange for non-purchase actions.
 
 ### Typography
 
@@ -93,43 +96,18 @@
 
 ### Buttons
 
-Use shadcn/ui `Button` (`variant="default"`, `variant="outline"`) rather than hand-rolled CSS — this is the reference for how it should look once themed:
+Use shadcn/ui `Button` rather than hand-rolled CSS:
 
-```css
-/* Primary Button — Button variant="default" */
-.btn-primary {
-  background: #EA580C;
-  color: #0F172A;
-  padding: 12px 24px;
-  border-radius: 8px; /* shadcn base-nova default radius, don't override per-component */
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.btn-primary:hover {
-  background: #F97316;
-}
-
-/* Secondary/outline Button — Button variant="outline" */
-.btn-secondary {
-  background: transparent;
-  color: #EA580C;
-  border: 1px solid #EA580C;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
+- `variant="default"` — indigo primary (`--primary`), general actions.
+- `variant="cta"` — orange (`--cta`, hover `--cta-hover`), purchase flow only.
+- `variant="outline"` / `"ghost"` / `"secondary"` — neutral zinc.
 
 ### Cards (event card — shadcn `Card`)
 
 ```css
 .card {
   background: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  border: 1px solid #E4E4E7;
   border-radius: 12px;
   padding: 16px;
   box-shadow: var(--shadow-sm); /* keep it light — flat/minimal, not shadow-md+ everywhere */
@@ -148,16 +126,16 @@ Use shadcn/ui `Button` (`variant="default"`, `variant="outline"`) rather than ha
 ```css
 .input {
   padding: 12px 16px;
-  border: 1px solid #E2E8F0;
+  border: 1px solid #E4E4E7;
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 200ms ease;
 }
 
 .input:focus {
-  border-color: #EA580C;
+  border-color: #818CF8;
   outline: none;
-  box-shadow: 0 0 0 3px #EA580C20;
+  box-shadow: 0 0 0 3px #818CF820;
 }
 ```
 

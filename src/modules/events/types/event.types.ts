@@ -1,4 +1,14 @@
+import type { VenueLayoutId } from "@/modules/tickets/types/venue.types";
+
 export type EventCategory = "concert" | "theater";
+
+export const EVENT_CATEGORY_LABELS: Record<
+  EventCategory,
+  { singular: string; plural: string }
+> = {
+  concert: { singular: "Concierto", plural: "Conciertos" },
+  theater: { singular: "Teatro", plural: "Teatro y espectáculos" },
+};
 
 export interface Event {
   id: string;
@@ -10,4 +20,12 @@ export interface Event {
   price: number; // soles (PEN), sin símbolo
   imageUrl: string; // host images.unsplash.com
   featured: boolean;
+}
+
+export interface EventDetail extends Event {
+  description: string;
+  doorsOpenAt: string; // ISO 8601 con offset
+  minAge: number | null; // null = todo público
+  address: string;
+  layoutId: VenueLayoutId;
 }

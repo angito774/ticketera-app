@@ -1,64 +1,57 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
+import { formatDate, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Event, EventCategory } from "@/modules/events/types/event.types";
+import {
+  EVENT_CATEGORY_LABELS,
+  type Event,
+} from "@/modules/events/types/event.types";
 
 interface EventCardProps {
   event: Event;
   className?: string;
 }
 
-const CATEGORY_LABELS: Record<EventCategory, string> = {
-  concert: "Concierto",
-  theater: "Teatro",
-};
-
-const dateFormatter = new Intl.DateTimeFormat("es-PE", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
-const priceFormatter = new Intl.NumberFormat("es-PE", {
-  style: "currency",
-  currency: "PEN",
-});
-
 export function EventCard({ event, className }: EventCardProps) {
-  const formattedDate = dateFormatter.format(new Date(event.date));
-  const formattedPrice = priceFormatter.format(event.price);
-
   return (
-    <Card
+    <Link
+      href={`/events/${event.id}`}
       className={cn(
-        "cursor-pointer gap-3 py-0 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md",
+        "group/event-card block cursor-pointer rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring",
         className
       )}
     >
-      <div className="relative aspect-[4/3] w-full">
-        <Image
-          src={event.imageUrl}
-          alt={event.title}
-          fill
-          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-          className="object-cover"
-        />
-        <Badge className="absolute top-3 left-3">
-          {CATEGORY_LABELS[event.category]}
-        </Badge>
-      </div>
-      <CardContent className="flex flex-col gap-1 pt-3">
-        <CardTitle>{event.title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{formattedDate}</p>
-        <p className="text-sm text-muted-foreground">
-          {event.venue}, {event.city}
-        </p>
-      </CardContent>
-      <CardFooter>
-        <span className="font-medium text-foreground">{formattedPrice}</span>
-      </CardFooter>
-    </Card>
+      <Card className="h-full gap-3 py-0 shadow-sm transition-all duration-200 group-hover/event-card:-translate-y-1 group-hover/event-card:shadow-md motion-reduce:transition-none motion-reduce:group-hover/event-card:translate-y-0">
+        <div className="relative aspect-[4/3] w-full">
+          <Image
+            src={event.imageUrl}
+            alt={event.title}
+            fill
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover"
+          />
+          <Badge className="absolute top-3 left-3">
+            {EVENT_CATEGORY_LABELS[event.category].singular}
+          </Badge>
+        </div>
+        <CardContent className="flex flex-col gap-1 pt-3">
+          <CardTitle>{event.title}</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {formatDate(event.date)}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {event.venue}, {event.city}
+          </p>
+        </CardContent>
+        <CardFooter>
+          <span className="font-medium text-foreground">
+            Desde {formatPrice(event.price)}
+          </span>
+        </CardFooter>
+      </Card>
+    </Link>
   );
 }

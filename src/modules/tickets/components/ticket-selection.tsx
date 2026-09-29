@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import { PurchaseSummary } from "@/modules/tickets/components/purchase-summary";
 import { SeatMap } from "@/modules/tickets/components/seat-map";
+import { SelectedSeatChips } from "@/modules/tickets/components/selected-seat-chips";
 import { VenueMap } from "@/modules/tickets/components/venue-map";
+import { ZoneLegend } from "@/modules/tickets/components/zone-legend";
 import { ZoneTicketList } from "@/modules/tickets/components/zone-ticket-list";
 import { MAX_TICKETS_PER_ZONE } from "@/modules/tickets/services/venues.service";
 import {
@@ -58,6 +60,8 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
   const selection = isCurrentEvent ? state : EMPTY_SELECTION;
   const activeZoneId = isCurrentEvent ? state.activeZoneId : null;
 
+  const [highlightedZoneId, setHighlightedZoneId] = useState<string | null>(null);
+
   const summary = useMemo(() => buildPurchaseSummary(layout, selection), [layout, selection]);
   const activeZone = layout.zones.find((zone) => zone.id === activeZoneId);
   const activeSeatIds = activeZone ? (selection.seats[activeZone.id] ?? []) : [];
@@ -75,12 +79,19 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
             <h2 className="text-lg font-semibold lg:text-xl">Elige tu zona</h2>
             <span className="text-[0.8125rem] text-muted-foreground">Toca una zona del mapa</span>
           </div>
-          <div className="rounded-2xl bg-muted/60 p-3 lg:p-5">
+          <div className="flex flex-col gap-3 rounded-2xl bg-brand-deep bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--primary)_40%,transparent),transparent_65%)] p-3 lg:gap-5 lg:p-6">
+            <ZoneLegend
+              zones={layout.zones}
+              activeZoneId={activeZoneId}
+              onSelectZone={selectZone}
+              onHighlightZone={setHighlightedZoneId}
+            />
             <VenueMap
               layout={layout}
               activeZoneId={activeZoneId}
+              highlightedZoneId={highlightedZoneId}
               onSelectZone={selectZone}
-              className="mx-auto max-w-2xl"
+              className="mx-auto w-full max-w-2xl"
             />
           </div>
         </section>
@@ -101,6 +112,11 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
               selectedSeatIds={activeSeatIds}
               maxReached={activeSeatIds.length >= MAX_TICKETS_PER_ZONE}
               onToggleSeat={(seat) => toggleSeat(activeZone, seat)}
+            />
+            <SelectedSeatChips
+              zone={activeZone}
+              selectedSeatIds={activeSeatIds}
+              onRemove={(seat) => toggleSeat(activeZone, seat)}
             />
           </section>
         )}

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { FIELD_INPUT_CLASSES, FormField, fieldA11yProps } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleSignIn } from "@/modules/account/components/google-sign-in";
 import { PasswordInput } from "@/modules/account/components/password-input";
 import { getLoginErrors, type LoginValues } from "@/modules/account/schemas/auth.schema";
 import { authenticate, DEMO_ACCOUNT, type User } from "@/modules/account/services/auth.service";
@@ -55,6 +56,8 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Hola de nuevo</h1>
         <p className="text-muted-foreground">Ingresa para ver tus entradas y comprar más rápido.</p>
       </div>
+
+      <GoogleSignIn onSuccess={onSuccess} />
 
       {formError && (
         <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">

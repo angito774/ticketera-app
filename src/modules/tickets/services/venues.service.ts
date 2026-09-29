@@ -1,22 +1,29 @@
+import {
+  boundsOf,
+  labelPoint,
+  pathOf,
+  placeSeatsOnArc,
+} from "@/modules/tickets/services/venue-geometry";
 import type {
-  Rect,
   Seat,
   SeatRow,
+  ShapeGeometry,
   VenueLayout,
   VenueLayoutId,
   VenueZone,
   ZoneSeating,
+  ZoneShape,
   ZoneStatus,
   ZoneTone,
 } from "@/modules/tickets/types/venue.types";
 
 export const MAX_TICKETS_PER_ZONE = 6;
 
-/** Separación entre asientos y entre filas, en unidades del viewBox de `SeatMap`. */
+/** Separación entre asientos (sobre el arco) y entre filas, en unidades del viewBox de `SeatMap`. */
 export const SEAT_SPACING = 24;
 export const ROW_SPACING = 28;
-/** Espacio a la izquierda de cada fila para su etiqueta. */
-export const ROW_LABEL_GUTTER = 32;
+/** Radio de la primera fila: las filas son arcos concéntricos frente al escenario. */
+export const FIRST_ROW_RADIUS = 260;
 
 interface ZoneTemplate {
   id: string;
@@ -27,24 +34,31 @@ interface ZoneTemplate {
   status: ZoneStatus;
   seating: ZoneSeating;
   tone: ZoneTone;
-  shape: Rect;
+  geometry: ShapeGeometry;
   /** Solo zonas numeradas: etiqueta de fila → cantidad de asientos. */
   rows?: [label: string, seats: number][];
 }
 
 interface LayoutTemplate {
   viewBox: VenueLayout["viewBox"];
-  stage: Rect;
+  stage: ShapeGeometry;
   zones: ZoneTemplate[];
 }
 
 const rowsOf = (labels: string, seats: number): [string, number][] =>
   labels.split("").map((label) => [label, seats]);
 
+/** Estadio: campo frente al escenario y tribunas curvas en herradura alrededor del campo. */
+const STADIUM_CENTER = { cx: 200, cy: 150 };
+const STADIUM_RING = { innerRadius: 120, outerRadius: 185 };
+
+/** Teatro: bandas concéntricas en abanico que se abren desde el escenario. */
+const THEATER_FAN = { cx: 200, cy: 8, startAngle: 42, endAngle: 138 };
+
 const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
   stadium: {
-    viewBox: { width: 400, height: 300 },
-    stage: { x: 90, y: 0, width: 220, height: 34 },
+    viewBox: { width: 400, height: 345 },
+    stage: { kind: "rect", rect: { x: 140, y: 36, width: 120, height: 32 }, radius: 10 },
     zones: [
       {
         id: "vip",
@@ -54,7 +68,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "sold-out",
         seating: "general",
         tone: 1,
-        shape: { x: 90, y: 42, width: 220, height: 80 },
+        geometry: { kind: "rect", rect: { x: 140, y: 80, width: 120, height: 56 }, radius: 14 },
       },
       {
         id: "general",
@@ -64,7 +78,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "general",
         tone: 2,
-        shape: { x: 90, y: 130, width: 220, height: 100 },
+        geometry: { kind: "rect", rect: { x: 120, y: 146, width: 160, height: 84 }, radius: 18 },
       },
       {
         id: "occidente",
@@ -74,7 +88,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "last-tickets",
         seating: "numbered",
         tone: 3,
-        shape: { x: 0, y: 0, width: 82, height: 230 },
+        geometry: { kind: "arc", ...STADIUM_CENTER, ...STADIUM_RING, startAngle: 130, endAngle: 220 },
         rows: rowsOf("ABCDEFGH", 14),
       },
       {
@@ -85,7 +99,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "numbered",
         tone: 4,
-        shape: { x: 318, y: 0, width: 82, height: 230 },
+        geometry: { kind: "arc", ...STADIUM_CENTER, ...STADIUM_RING, startAngle: -40, endAngle: 50 },
         rows: rowsOf("ABCDEFGH", 14),
       },
       {
@@ -96,13 +110,13 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "general",
         tone: 5,
-        shape: { x: 0, y: 238, width: 400, height: 62 },
+        geometry: { kind: "arc", ...STADIUM_CENTER, ...STADIUM_RING, startAngle: 58, endAngle: 122 },
       },
     ],
   },
   theater: {
-    viewBox: { width: 400, height: 300 },
-    stage: { x: 60, y: 0, width: 280, height: 34 },
+    viewBox: { width: 400, height: 268 },
+    stage: { kind: "rect", rect: { x: 120, y: 10, width: 160, height: 30 }, radius: 10 },
     zones: [
       {
         id: "preferencial",
@@ -112,7 +126,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "last-tickets",
         seating: "numbered",
         tone: 1,
-        shape: { x: 60, y: 42, width: 280, height: 52 },
+        geometry: { kind: "arc", ...THEATER_FAN, innerRadius: 62, outerRadius: 97 },
         rows: [
           ["A", 12],
           ["B", 14],
@@ -127,7 +141,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "numbered",
         tone: 2,
-        shape: { x: 40, y: 102, width: 320, height: 80 },
+        geometry: { kind: "arc", ...THEATER_FAN, innerRadius: 104, outerRadius: 151 },
         rows: rowsOf("DEFGH", 18),
       },
       {
@@ -138,7 +152,7 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "numbered",
         tone: 3,
-        shape: { x: 20, y: 190, width: 360, height: 48 },
+        geometry: { kind: "arc", ...THEATER_FAN, innerRadius: 158, outerRadius: 198 },
         rows: rowsOf("JKL", 20),
       },
       {
@@ -149,12 +163,16 @@ const LAYOUTS: Record<VenueLayoutId, LayoutTemplate> = {
         status: "available",
         seating: "numbered",
         tone: 4,
-        shape: { x: 0, y: 246, width: 400, height: 54 },
+        geometry: { kind: "arc", ...THEATER_FAN, innerRadius: 205, outerRadius: 250 },
         rows: rowsOf("MNO", 22),
       },
     ],
   },
 };
+
+export function toZoneShape(geometry: ShapeGeometry): ZoneShape {
+  return { geometry, path: pathOf(geometry), label: labelPoint(geometry), bounds: boundsOf(geometry) };
+}
 
 /** Generador pseudoaleatorio con semilla (LCG): mismos asientos ocupados en cada llamada. */
 function seededRandom(seed: string): () => number {
@@ -170,23 +188,27 @@ function buildSeatRows(zone: ZoneTemplate): SeatRow[] {
 
   const random = seededRandom(zone.id);
   const takenRatio = zone.status === "last-tickets" ? 0.8 : 0.3;
-  const maxSeats = Math.max(...zone.rows.map(([, seats]) => seats));
 
   return zone.rows.map(([label, seatCount], rowIndex) => {
-    // Las filas más cortas se centran respecto de la más larga.
-    const offset = ((maxSeats - seatCount) * SEAT_SPACING) / 2;
-    const seats: Seat[] = Array.from({ length: seatCount }, (_, index) => {
+    // Filas curvas: arcos concéntricos cuyo centro queda "detrás" del escenario (arriba).
+    const radius = FIRST_ROW_RADIUS + rowIndex * ROW_SPACING;
+    const withLabels = placeSeatsOnArc(0, 0, radius, seatCount + 2, SEAT_SPACING);
+    const positions = withLabels.slice(1, -1);
+    const seats: Seat[] = positions.map((position, index) => {
       const number = index + 1;
       return {
         id: `${zone.id}-${label}-${number}`,
         row: label,
         number,
         status: random() < takenRatio ? "taken" : "available",
-        x: ROW_LABEL_GUTTER + offset + index * SEAT_SPACING + SEAT_SPACING / 2,
-        y: rowIndex * ROW_SPACING + ROW_SPACING / 2,
+        x: position.x,
+        y: position.y,
+        angle: position.angle,
       };
     });
-    return { label, seats };
+    const first = withLabels[0];
+    const last = withLabels[withLabels.length - 1];
+    return { label, seats, labelPositions: [{ x: first.x, y: first.y }, { x: last.x, y: last.y }] };
   });
 }
 
@@ -207,14 +229,14 @@ export function getVenueLayout(
     status: zone.status,
     seating: zone.seating,
     tone: zone.tone,
-    shape: zone.shape,
+    shape: toZoneShape(zone.geometry),
     rows: buildSeatRows(zone),
   }));
 
   return {
     id,
     viewBox: template.viewBox,
-    stage: template.stage,
+    stage: toZoneShape(template.stage),
     zones,
   };
 }

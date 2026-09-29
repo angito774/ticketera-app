@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { FIELD_INPUT_CLASSES, FormField, fieldA11yProps } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GoogleSignIn } from "@/modules/account/components/google-sign-in";
 import { PasswordInput } from "@/modules/account/components/password-input";
 import { getRegisterErrors, type RegisterValues } from "@/modules/account/schemas/auth.schema";
 import { register, type User } from "@/modules/account/services/auth.service";
@@ -60,6 +61,8 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Crea tu cuenta</h1>
         <p className="text-muted-foreground">Guarda tus entradas y recibe novedades de tus eventos.</p>
       </div>
+
+      <GoogleSignIn onSuccess={onSuccess} />
 
       {formError && (
         <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">

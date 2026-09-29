@@ -2,7 +2,7 @@
 
 **Estado**: done
 **Aprobado por**: usuario — 2026-09-29 (Fase 1, con la decisión de paleta "Migrar a índigo del diseño")
-**Fase**: 1 de 5 completada — Fase 2 (checkout + confirmación) pendiente de spec y aprobación
+**Fase**: 1 de 5 completada — Fase 2 completada en `docs/specs/checkout/checkout-and-confirmation.md`; Fase 3 (búsqueda) pendiente de spec y aprobación
 
 ## Contexto
 
@@ -28,7 +28,7 @@ Motivos: el mapa se describe con datos (`VenueLayout`: formas de zonas + filas/a
 | Fase | Pantallas (escritorio + móvil) | Estado |
 |---|---|---|
 | **1 (esta)** | 3 · Detalle de evento, 4 · Selección de entradas (mapa de zonas + mapa de asientos) | done |
-| 2 | 5 · Checkout y pago, 6 · Confirmación de compra | pendiente |
+| 2 | 5 · Checkout y pago, 6 · Confirmación de compra | done (`docs/specs/checkout/checkout-and-confirmation.md`) |
 | 3 | 2 · Búsqueda y listado (filtros funcionales sobre el mock) | pendiente |
 | 4 | 7 · Login y registro, 6 · Mis entradas | pendiente |
 | 5 | 8 · Panel de organizador, 8 · Crear evento | pendiente |

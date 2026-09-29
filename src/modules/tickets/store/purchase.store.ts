@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 import { MAX_TICKETS_PER_ZONE } from "@/modules/tickets/services/venues.service";
 import type {
@@ -27,48 +28,58 @@ interface PurchaseState extends PurchaseSelection {
 
 const EMPTY_SELECTION: PurchaseSelection = { quantities: {}, seats: {} };
 
-export const usePurchaseStore = create<PurchaseState>()((set, get) => ({
-  eventId: null,
-  activeZoneId: null,
-  ...EMPTY_SELECTION,
+export const usePurchaseStore = create<PurchaseState>()(
+  persist(
+    (set, get) => ({
+      eventId: null,
+      activeZoneId: null,
+      ...EMPTY_SELECTION,
 
-  startPurchase: (eventId) => {
-    if (get().eventId === eventId) return;
-    set({ eventId, activeZoneId: null, ...EMPTY_SELECTION });
-  },
-
-  selectZone: (zoneId) => set({ activeZoneId: zoneId }),
-
-  setQuantity: (zone, quantity) => {
-    if (zone.seating !== "general" || zone.status === "sold-out") return;
-    const clamped = Math.min(Math.max(Math.trunc(quantity), 0), MAX_TICKETS_PER_ZONE);
-    set((state) => ({
-      activeZoneId: zone.id,
-      quantities: { ...state.quantities, [zone.id]: clamped },
-    }));
-  },
-
-  toggleSeat: (zone, seat) => {
-    if (zone.seating !== "numbered" || seat.status === "taken") return;
-    if (!zone.rows.some((row) => row.seats.some((item) => item.id === seat.id))) return;
-
-    const current = get().seats[zone.id] ?? [];
-    const isSelected = current.includes(seat.id);
-    if (!isSelected && current.length >= MAX_TICKETS_PER_ZONE) return;
-
-    set((state) => ({
-      activeZoneId: zone.id,
-      seats: {
-        ...state.seats,
-        [zone.id]: isSelected
-          ? current.filter((id) => id !== seat.id)
-          : [...current, seat.id],
+      startPurchase: (eventId) => {
+        if (get().eventId === eventId) return;
+        set({ eventId, activeZoneId: null, ...EMPTY_SELECTION });
       },
-    }));
-  },
 
-  clear: () => set({ activeZoneId: null, ...EMPTY_SELECTION }),
-}));
+      selectZone: (zoneId) => set({ activeZoneId: zoneId }),
+
+      setQuantity: (zone, quantity) => {
+        if (zone.seating !== "general" || zone.status === "sold-out") return;
+        const clamped = Math.min(Math.max(Math.trunc(quantity), 0), MAX_TICKETS_PER_ZONE);
+        set((state) => ({
+          activeZoneId: zone.id,
+          quantities: { ...state.quantities, [zone.id]: clamped },
+        }));
+      },
+
+      toggleSeat: (zone, seat) => {
+        if (zone.seating !== "numbered" || seat.status === "taken") return;
+        if (!zone.rows.some((row) => row.seats.some((item) => item.id === seat.id))) return;
+
+        const current = get().seats[zone.id] ?? [];
+        const isSelected = current.includes(seat.id);
+        if (!isSelected && current.length >= MAX_TICKETS_PER_ZONE) return;
+
+        set((state) => ({
+          activeZoneId: zone.id,
+          seats: {
+            ...state.seats,
+            [zone.id]: isSelected
+              ? current.filter((id) => id !== seat.id)
+              : [...current, seat.id],
+          },
+        }));
+      },
+
+      clear: () => set({ activeZoneId: null, ...EMPTY_SELECTION }),
+    }),
+    {
+      // sessionStorage: la selección sobrevive a recargas del checkout, no a cerrar la pestaña.
+      name: "ticketera-purchase",
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: ({ eventId, quantities, seats }) => ({ eventId, quantities, seats }),
+    }
+  )
+);
 
 export interface PurchaseLine {
   zoneId: string;

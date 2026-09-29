@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import { PurchaseSummary } from "@/modules/tickets/components/purchase-summary";
 import { SeatMap } from "@/modules/tickets/components/seat-map";
@@ -50,8 +51,10 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
     startPurchase(eventId);
   }, [eventId, startPurchase]);
 
-  // Hasta que el efecto corre, el store puede tener la selección de otro evento: no mostrarla.
-  const isCurrentEvent = state.eventId === eventId;
+  // La selección vive en sessionStorage (el servidor no la conoce): se muestra recién
+  // tras hidratar, y nunca si pertenece a otro evento (antes de que corra el efecto).
+  const hydrated = useHydrated();
+  const isCurrentEvent = hydrated && state.eventId === eventId;
   const selection = isCurrentEvent ? state : EMPTY_SELECTION;
   const activeZoneId = isCurrentEvent ? state.activeZoneId : null;
 

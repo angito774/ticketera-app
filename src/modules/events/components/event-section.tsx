@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { EventCard } from "@/modules/events/components/event-card";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/modules/events/types/event.types";
@@ -27,7 +27,9 @@ export function EventSection({
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-2xl font-bold md:text-3xl">{title}</h2>
         {viewAllHref ? (
-          <Button variant="link" render={<Link href={viewAllHref}>Ver todos</Link>} />
+          <Link href={viewAllHref} className={buttonVariants({ variant: "link" })}>
+            Ver todos
+          </Link>
         ) : null}
       </div>
 

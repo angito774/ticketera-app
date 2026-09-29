@@ -34,11 +34,16 @@ export default function Home() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 py-8 md:px-6 lg:px-8">
           <EventCarousel events={featuredEvents} title="Eventos destacados" />
 
-          <EventSection title="Conciertos" events={concertEvents} />
+          <EventSection
+            title="Conciertos"
+            events={concertEvents}
+            viewAllHref="/events?category=concert"
+          />
 
           <EventSection
             title="Teatro y espectáculos"
             events={theaterEvents}
+            viewAllHref="/events?category=theater"
           />
 
           <section className="flex flex-col gap-6">

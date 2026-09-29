@@ -8,8 +8,9 @@ interface HeaderProps {
 }
 
 const CATEGORY_LINKS = [
-  { label: "Conciertos", href: "#" },
-  { label: "Teatro y espectáculos", href: "#" },
+  { label: "Eventos", href: "/events" },
+  { label: "Conciertos", href: "/events?category=concert" },
+  { label: "Teatro y espectáculos", href: "/events?category=theater" },
 ];
 
 export function Header({ className }: HeaderProps) {
@@ -33,13 +34,13 @@ export function Header({ className }: HeaderProps) {
           className="hidden items-center gap-6 md:flex"
         >
           {CATEGORY_LINKS.map((link) => (
-            <a
+            <Link
               key={link.label}
               href={link.href}
               className="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-primary"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 

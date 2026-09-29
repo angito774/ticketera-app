@@ -1,3 +1,4 @@
+import Form from "next/form"
 import Image from "next/image"
 import { Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -92,27 +93,29 @@ function Hero({
         </h1>
         <p className="text-base text-gray-300 md:text-lg">{subtitle}</p>
         <div className="w-full max-w-xl rounded-2xl bg-card p-3 shadow-lg">
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <Form action="/events" role="search" className="flex flex-col gap-2 sm:flex-row">
             <div className="relative flex-1">
               <Search
                 className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
               <Input
-                type="text"
+                type="search"
+                name="q"
                 placeholder="Busca conciertos, teatro, artistas..."
                 className="h-11 pl-9"
                 aria-label="Buscar eventos"
               />
             </div>
             <Button
+              type="submit"
               variant="default"
               size="lg"
               className="h-11 cursor-pointer"
             >
               Buscar
             </Button>
-          </div>
+          </Form>
         </div>
         <div className="grid w-full grid-cols-2 grid-rows-[repeat(3,8rem)] gap-3 sm:grid-cols-4 sm:grid-rows-[repeat(2,9rem)] sm:gap-4">
           {BENTO_TILES.map((tile) => (

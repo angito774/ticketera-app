@@ -11,11 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { FIELD_INPUT_CLASSES as INPUT_CLASSES, FormField, fieldA11yProps } from "@/components/form-field";
+import {
+  FIELD_INPUT_CLASSES as INPUT_CLASSES,
+  FieldError,
+  FormField,
+  RequiredMark,
+  fieldA11yProps,
+} from "@/components/form-field";
 import { PaymentMethodField } from "@/modules/checkout/components/payment-method-field";
 import {
   DOCUMENT_TYPE_LABELS,
   DOCUMENT_TYPES,
+  type CheckoutField,
   type CheckoutFieldErrors,
   type CheckoutFormValues,
   type DocumentType,
@@ -30,6 +37,8 @@ interface CheckoutFormProps {
   values: CheckoutFormValues;
   errors: CheckoutFieldErrors;
   onChange: (patch: Partial<CheckoutFormValues>) => void;
+  /** Al salir de un campo: permite marcarlo en rojo si quedó incompleto. */
+  onFieldBlur: (field: CheckoutField) => void;
   className?: string;
 }
 
@@ -38,7 +47,7 @@ const INFO_CLASSES =
   "flex items-start gap-3 rounded-2xl bg-accent p-4 text-sm leading-relaxed text-accent-foreground";
 
 /** Datos del comprador, método de pago y aceptación de términos (campos controlados). */
-export function CheckoutForm({ values, errors, onChange, className }: CheckoutFormProps) {
+export function CheckoutForm({ values, errors, onChange, onFieldBlur, className }: CheckoutFormProps) {
   const setCard = (patch: Partial<CheckoutFormValues["card"]>) =>
     onChange({ card: { ...values.card, ...patch } });
 
@@ -48,13 +57,14 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold lg:text-xl">Datos del comprador</h2>
           <p className="text-sm text-muted-foreground">
-            Enviaremos tus entradas al correo que indiques.
+            Enviaremos tus entradas al correo que indiques. Los campos con <RequiredMark /> son obligatorios.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id={checkoutFieldId("fullName")} label="Nombre completo" error={errors.fullName}>
+          <FormField required id={checkoutFieldId("fullName")} label="Nombre completo" error={errors.fullName}>
             <Input
-              {...fieldA11yProps(checkoutFieldId("fullName"), errors.fullName)}
+              {...fieldA11yProps(checkoutFieldId("fullName"), errors.fullName, true)}
+              onBlur={() => onFieldBlur("fullName")}
               type="text"
               autoComplete="name"
               placeholder="Como figura en tu documento"
@@ -63,9 +73,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
               className={INPUT_CLASSES}
             />
           </FormField>
-          <FormField id={checkoutFieldId("email")} label="Correo electrónico" error={errors.email}>
+          <FormField required id={checkoutFieldId("email")} label="Correo electrónico" error={errors.email}>
             <Input
-              {...fieldA11yProps(checkoutFieldId("email"), errors.email)}
+              {...fieldA11yProps(checkoutFieldId("email"), errors.email, true)}
+              onBlur={() => onFieldBlur("email")}
               type="email"
               autoComplete="email"
               placeholder="tu@email.com"
@@ -74,7 +85,7 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
               className={INPUT_CLASSES}
             />
           </FormField>
-          <FormField id={checkoutFieldId("documentNumber")} label="Documento de identidad" error={errors.documentNumber}>
+          <FormField required id={checkoutFieldId("documentNumber")} label="Documento de identidad" error={errors.documentNumber}>
             <div className="flex gap-2">
               <Select
                 value={values.documentType}
@@ -93,7 +104,8 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
                 </SelectContent>
               </Select>
               <Input
-                {...fieldA11yProps(checkoutFieldId("documentNumber"), errors.documentNumber)}
+                {...fieldA11yProps(checkoutFieldId("documentNumber"), errors.documentNumber, true)}
+              onBlur={() => onFieldBlur("documentNumber")}
                 type="text"
                 inputMode={values.documentType === "PASSPORT" ? "text" : "numeric"}
                 placeholder="Número"
@@ -103,9 +115,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
               />
             </div>
           </FormField>
-          <FormField id={checkoutFieldId("phone")} label="Celular" error={errors.phone}>
+          <FormField required id={checkoutFieldId("phone")} label="Celular" error={errors.phone}>
             <Input
-              {...fieldA11yProps(checkoutFieldId("phone"), errors.phone)}
+              {...fieldA11yProps(checkoutFieldId("phone"), errors.phone, true)}
+              onBlur={() => onFieldBlur("phone")}
               type="tel"
               autoComplete="tel-national"
               inputMode="tel"
@@ -127,9 +140,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
 
         {values.paymentMethod === "card" && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <FormField id={checkoutFieldId("card.number")} label="Número de tarjeta" error={errors["card.number"]} className="col-span-2">
+            <FormField required id={checkoutFieldId("card.number")} label="Número de tarjeta" error={errors["card.number"]} className="col-span-2">
               <Input
-                {...fieldA11yProps(checkoutFieldId("card.number"), errors["card.number"])}
+                {...fieldA11yProps(checkoutFieldId("card.number"), errors["card.number"], true)}
+              onBlur={() => onFieldBlur("card.number")}
                 type="text"
                 inputMode="numeric"
                 autoComplete="cc-number"
@@ -140,9 +154,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
                 className={INPUT_CLASSES}
               />
             </FormField>
-            <FormField id={checkoutFieldId("card.expiry")} label="Vencimiento" error={errors["card.expiry"]}>
+            <FormField required id={checkoutFieldId("card.expiry")} label="Vencimiento" error={errors["card.expiry"]}>
               <Input
-                {...fieldA11yProps(checkoutFieldId("card.expiry"), errors["card.expiry"])}
+                {...fieldA11yProps(checkoutFieldId("card.expiry"), errors["card.expiry"], true)}
+              onBlur={() => onFieldBlur("card.expiry")}
                 type="text"
                 inputMode="numeric"
                 autoComplete="cc-exp"
@@ -153,9 +168,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
                 className={INPUT_CLASSES}
               />
             </FormField>
-            <FormField id={checkoutFieldId("card.cvv")} label="CVV" error={errors["card.cvv"]}>
+            <FormField required id={checkoutFieldId("card.cvv")} label="CVV" error={errors["card.cvv"]}>
               <Input
-                {...fieldA11yProps(checkoutFieldId("card.cvv"), errors["card.cvv"])}
+                {...fieldA11yProps(checkoutFieldId("card.cvv"), errors["card.cvv"], true)}
+              onBlur={() => onFieldBlur("card.cvv")}
                 type="password"
                 inputMode="numeric"
                 autoComplete="cc-csc"
@@ -166,9 +182,10 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
                 className={INPUT_CLASSES}
               />
             </FormField>
-            <FormField id={checkoutFieldId("card.holder")} label="Nombre en la tarjeta" error={errors["card.holder"]} className="col-span-2 sm:col-span-4">
+            <FormField required id={checkoutFieldId("card.holder")} label="Nombre en la tarjeta" error={errors["card.holder"]} className="col-span-2 sm:col-span-4">
               <Input
-                {...fieldA11yProps(checkoutFieldId("card.holder"), errors["card.holder"])}
+                {...fieldA11yProps(checkoutFieldId("card.holder"), errors["card.holder"], true)}
+              onBlur={() => onFieldBlur("card.holder")}
                 type="text"
                 autoComplete="cc-name"
                 placeholder="Como aparece en la tarjeta"
@@ -195,14 +212,22 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
         )}
       </section>
 
-      <div className="flex flex-col gap-1.5 px-1">
-        <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed">
+      <div
+        className={cn(
+          "flex flex-col gap-1.5 rounded-2xl px-1 transition-colors",
+          errors.acceptedTerms && "bg-destructive/5 px-3 py-3 ring-1 ring-destructive/40"
+        )}
+      >
+        <label className={cn("flex cursor-pointer items-start gap-3 text-sm leading-relaxed", errors.acceptedTerms && "text-destructive")}>
           <input
-            {...fieldA11yProps(checkoutFieldId("acceptedTerms"), errors.acceptedTerms)}
+            {...fieldA11yProps(checkoutFieldId("acceptedTerms"), errors.acceptedTerms, true)}
             type="checkbox"
             checked={values.acceptedTerms}
             onChange={(event) => onChange({ acceptedTerms: event.target.checked })}
-            className="mt-0.5 size-5 shrink-0 cursor-pointer rounded accent-primary"
+            className={cn(
+              "mt-0.5 size-5 shrink-0 cursor-pointer rounded accent-primary",
+              errors.acceptedTerms && "outline-2 outline-offset-1 outline-destructive"
+            )}
           />
           <span>
             Acepto los{" "}
@@ -213,13 +238,13 @@ export function CheckoutForm({ values, errors, onChange, className }: CheckoutFo
             <a href="#" className="font-medium text-primary underline-offset-4 hover:underline">
               Política de privacidad
             </a>
-            .
+            .<RequiredMark />
           </span>
         </label>
         {errors.acceptedTerms && (
-          <p id={`${checkoutFieldId("acceptedTerms")}-error`} className="pl-8 text-[0.8125rem] text-destructive">
+          <FieldError id={checkoutFieldId("acceptedTerms")} className="pl-8">
             {errors.acceptedTerms}
-          </p>
+          </FieldError>
         )}
       </div>
     </div>

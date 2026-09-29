@@ -156,6 +156,13 @@ export function useHydrated(): boolean;
 
 Verificado: `npm run lint`, `npm run test` (82 tests) y `npm run build` en verde; recorrido completo con Playwright en 1440 px y 390 px: estado vacío por acceso directo, errores + foco al primer campo, pago con Tarjeta y Yape, confirmación con 3 entradas paginables, descarga del `.ics`, recarga del checkout (misma reserva) y de la confirmación, reserva vencida (pago deshabilitado y vuelta a la selección), sin scroll horizontal ni errores de consola.
 
+### Cambio posterior (2026-09-29, pedido por el usuario): obligatorios en rojo
+
+- Todos los campos obligatorios llevan un asterisco rojo (`RequiredMark`) y `aria-required`; el formulario aclara "Los campos con * son obligatorios.".
+- Un campo se marca en rojo (etiqueta, borde y fondo suave, más el mensaje con ícono) al salir de él si quedó incompleto o inválido, y todos los que falten al pulsar "Pagar". El rojo desaparece en vivo al corregir.
+- **Reemplaza a AC-6 en lo del botón deshabilitado**: "Pagar" ya no se deshabilita por no aceptar los términos (solo durante el pago o con la reserva vencida). Al pulsarlo con datos incompletos marca en rojo lo que falta —incluida la casilla de términos—, lleva el foco al primero y muestra "Completa los N campos marcados en rojo para continuar." (`role="alert"`) junto al botón.
+- `FormField` compartido suma `required`, `RequiredMark` y `FieldError`; los inputs inválidos tienen fondo rojo suave en toda la app.
+
 ## Fases siguientes
 
 Fase 3 (búsqueda), Fase 4 (login/registro + Mis entradas: consumirá `Order` del store), Fase 5 (organizador). Ver `docs/specs/tickets/purchase-flow.md`.

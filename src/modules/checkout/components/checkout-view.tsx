@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Ticket } from "lucide-react";
+import { CircleAlert, Loader2, Lock, Ticket } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { StickyBottomBar } from "@/components/sticky-bottom-bar";
@@ -75,7 +75,8 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   const hasSelection = hydrated && purchase.eventId === event.id && summary.ticketCount > 0;
 
   const [values, setValues] = useState<CheckoutFormValues>(EMPTY_CHECKOUT_VALUES);
-  const [errors, setErrors] = useState<CheckoutFieldErrors>({});
+  // Campos que el usuario ya dejó: se marcan en rojo si quedaron incompletos.
+  const [touched, setTouched] = useState<ReadonlySet<CheckoutField>>(new Set());
   const [wasSubmitted, setWasSubmitted] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
 
@@ -86,22 +87,27 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   const countdown = useCountdown(expiresAt);
   const isExpired = Boolean(expiresAt) && countdown.isExpired;
 
+  // Errores en vivo: antes de intentar pagar, solo de los campos tocados; después, de todos.
+  const allErrors = useMemo(() => getFieldErrors(values), [values]);
+  const errors: CheckoutFieldErrors = wasSubmitted
+    ? allErrors
+    : Object.fromEntries(Object.entries(allErrors).filter(([field]) => touched.has(field as CheckoutField)));
+  const pendingCount = Object.keys(allErrors).length;
+
   const handleChange = (patch: Partial<CheckoutFormValues>) => {
-    const next = { ...values, ...patch };
-    setValues(next);
-    // Tras el primer intento, los errores se recalculan en vivo para que desaparezcan al corregir.
-    if (wasSubmitted) setErrors(getFieldErrors(next));
+    setValues((current) => ({ ...current, ...patch }));
+  };
+
+  const handleFieldBlur = (field: CheckoutField) => {
+    setTouched((current) => (current.has(field) ? current : new Set(current).add(field)));
   };
 
   const handleSubmit = (formEvent: FormEvent<HTMLFormElement>) => {
     formEvent.preventDefault();
     if (isPaying || isExpired) return;
 
-    const nextErrors = getFieldErrors(values);
     setWasSubmitted(true);
-    setErrors(nextErrors);
-
-    const firstInvalid = FIELD_ORDER.find((field) => nextErrors[field]);
+    const firstInvalid = FIELD_ORDER.find((field) => allErrors[field]);
     if (firstInvalid) {
       document.getElementById(checkoutFieldId(firstInvalid))?.focus();
       return;
@@ -147,7 +153,8 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
     );
   }
 
-  const canPay = values.acceptedTerms && !isExpired && !isPaying;
+  // El botón no se deshabilita por datos incompletos: al pulsarlo marca en rojo lo que falta.
+  const canPay = !isExpired && !isPaying;
   const payLabel = `Pagar ${formatPrice(summary.total)}`;
   const payButton = (buttonClassName: string) => (
     <button
@@ -172,9 +179,19 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
       )}
     </button>
   );
-  const termsHint = !values.acceptedTerms && (
-    <span className="text-center text-[0.8125rem] text-muted-foreground">Acepta los términos para continuar.</span>
-  );
+  const termsHint =
+    wasSubmitted && pendingCount > 0 ? (
+      <span role="alert" className="flex items-center justify-center gap-1.5 text-center text-[0.8125rem] font-medium text-destructive">
+        <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+        {pendingCount === 1
+          ? "Completa el campo marcado en rojo para continuar."
+          : `Completa los ${pendingCount} campos marcados en rojo para continuar.`}
+      </span>
+    ) : (
+      !values.acceptedTerms && (
+        <span className="text-center text-[0.8125rem] text-muted-foreground">Acepta los términos para continuar.</span>
+      )
+    );
 
   return (
     <form
@@ -189,7 +206,7 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
       <div className="flex flex-col gap-4 lg:gap-6">
         <ReservationNotice timeLeft={countdown.label} isExpired={isExpired} onRestart={restartReservation} />
         <CheckoutSummaryCollapsible event={event} summary={summary} ticketsHref={ticketsHref} />
-        <CheckoutForm values={values} errors={errors} onChange={handleChange} />
+        <CheckoutForm values={values} errors={errors} onChange={handleChange} onFieldBlur={handleFieldBlur} />
       </div>
 
       <CheckoutSummary

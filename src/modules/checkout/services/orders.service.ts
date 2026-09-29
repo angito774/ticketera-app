@@ -64,3 +64,8 @@ export function createOrder({
     createdAt: now.toISOString(),
   };
 }
+
+/** Código de cada entrada del pedido: "TK-24817-01". */
+export function getTicketCode(order: Order, index: number): string {
+  return `${order.number}-${String(index + 1).padStart(2, "0")}`;
+}

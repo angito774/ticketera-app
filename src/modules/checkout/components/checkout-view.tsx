@@ -12,9 +12,8 @@ import { useCountdown } from "@/hooks/use-countdown";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CheckoutForm } from "@/modules/checkout/components/checkout-form";
+import { CheckoutForm, checkoutFieldId } from "@/modules/checkout/components/checkout-form";
 import { CheckoutSummary, CheckoutSummaryCollapsible } from "@/modules/checkout/components/checkout-summary";
-import { checkoutFieldId } from "@/modules/checkout/components/form-field";
 import { ReservationNotice } from "@/modules/checkout/components/reservation-notice";
 import {
   EMPTY_CHECKOUT_VALUES,

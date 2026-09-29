@@ -31,6 +31,7 @@
 | Accent | `#EEF2FF` | `--accent` | Soft highlight: selected list row, menu hover |
 | On Accent | `#4338CA` | `--accent-foreground` | |
 | Warning | `#FFEDD5` / `#9A3412` | `--warning` / `--warning-foreground` | "Últimas entradas" badge |
+| Success | `#DCFCE7` / `#166534` | `--success` / `--success-foreground` | "Publicado" badge (organizer panel) |
 | Brand deep | `#1E1B4B` / `#E0E7FF` | `--brand-deep` / `--brand-deep-foreground` | Dark indigo panels (event detail hero) |
 | Background | `#FFFFFF` | `--background` | Page background |
 | Surface Warm | `#FFF7ED` | `--surface-warm` | Promo banner only |

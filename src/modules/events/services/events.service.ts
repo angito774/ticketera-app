@@ -1,7 +1,12 @@
-import type {
-  Event,
-  EventCategory,
-  EventDetail,
+import {
+  PRICE_RANGES,
+  type EventFilters,
+} from "@/modules/events/schemas/event-filters.schema";
+import {
+  EVENT_CATEGORY_LABELS,
+  type Event,
+  type EventCategory,
+  type EventDetail,
 } from "@/modules/events/types/event.types";
 
 const EVENTS: Event[] = [
@@ -236,4 +241,89 @@ export function getRelatedEvents(event: Event, limit = 4): Event[] {
   return EVENTS.filter(
     (item) => item.category === event.category && item.id !== event.id
   ).slice(0, limit);
+}
+
+/** Minúsculas y sin tildes, para comparar texto ("Ópera" ≈ "opera"). */
+function normalizeText(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+/** "2026-11": las fechas mock están en hora de Lima, así que el mes sale del propio string. */
+function monthKey(event: Event): string {
+  return event.date.slice(0, 7);
+}
+
+export function searchEvents(filters: EventFilters): Event[] {
+  const query = normalizeText(filters.q);
+  const range = filters.price ? PRICE_RANGES[filters.price] : null;
+
+  const results = EVENTS.filter((event) => {
+    if (query && !normalizeText(`${event.title} ${event.venue} ${event.city}`).includes(query)) {
+      return false;
+    }
+    if (filters.categories.length && !filters.categories.includes(event.category)) return false;
+    if (filters.cities.length && !filters.cities.includes(event.city)) return false;
+    if (filters.month && monthKey(event) !== filters.month) return false;
+    // Rango (min, max]; el primer rango incluye el 0.
+    if (range && !((range.min === 0 || event.price > range.min) && event.price <= range.max)) {
+      return false;
+    }
+    return true;
+  });
+
+  return results.sort((a, b) =>
+    filters.sort === "price"
+      ? a.price - b.price || a.date.localeCompare(b.date)
+      : new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+}
+
+export interface FacetOption<T extends string = string> {
+  value: T;
+  label: string;
+  count: number;
+}
+
+export interface EventFacets {
+  categories: FacetOption<EventCategory>[];
+  cities: FacetOption[];
+  months: FacetOption[];
+}
+
+const monthLabelFormatter = new Intl.DateTimeFormat("es-PE", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function monthLabel(key: string): string {
+  const label = monthLabelFormatter.format(new Date(`${key}-15T12:00:00Z`)).replace(" de ", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function countBy<T extends string>(values: T[]): Map<T, number> {
+  const counts = new Map<T, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return counts;
+}
+
+/** Opciones de filtro con su cantidad de eventos (sobre el total, no sobre el resultado filtrado). */
+export function getEventFacets(): EventFacets {
+  const categoryCounts = countBy(EVENTS.map((event) => event.category));
+  const cityCounts = countBy(EVENTS.map((event) => event.city));
+  const monthCounts = countBy(EVENTS.map(monthKey));
+
+  return {
+    categories: (Object.keys(EVENT_CATEGORY_LABELS) as EventCategory[]).map((category) => ({
+      value: category,
+      label: EVENT_CATEGORY_LABELS[category].plural,
+      count: categoryCounts.get(category) ?? 0,
+    })),
+    cities: [...cityCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "es"))
+      .map(([city, count]) => ({ value: city, label: city, count })),
+    months: [...monthCounts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, count]) => ({ value: month, label: monthLabel(month), count })),
+  };
 }

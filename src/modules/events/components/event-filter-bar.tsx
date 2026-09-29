@@ -1,3 +1,6 @@
+import Form from "next/form"
+
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -25,14 +28,15 @@ const CATEGORY_SELECT_ITEMS: Record<string, string> = {
 
 function EventFilterBar({ className }: EventFilterBarProps) {
   return (
-    <div className={cn("flex flex-col gap-2 sm:flex-row", className)}>
+    <Form action="/events" role="search" className={cn("flex flex-col gap-2 sm:flex-row", className)}>
       <Input
-        type="text"
+        type="search"
+        name="q"
         placeholder="Buscar por nombre, artista o venue..."
         className="h-11 flex-1"
         aria-label="Buscar eventos"
       />
-      <Select defaultValue="all" items={CATEGORY_SELECT_ITEMS}>
+      <Select name="category" defaultValue="all" items={CATEGORY_SELECT_ITEMS}>
         <SelectTrigger className="h-11 w-full sm:w-56" aria-label="Filtrar por categoría">
           <SelectValue />
         </SelectTrigger>
@@ -45,7 +49,10 @@ function EventFilterBar({ className }: EventFilterBarProps) {
           ))}
         </SelectContent>
       </Select>
-    </div>
+      <Button type="submit" className="h-11 px-5">
+        Buscar
+      </Button>
+    </Form>
   )
 }
 

@@ -1,15 +1,16 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HeaderAccount } from "@/modules/account/components/header-account";
 
 interface HeaderProps {
   className?: string;
 }
 
 const CATEGORY_LINKS = [
-  { label: "Conciertos", href: "#" },
-  { label: "Teatro y espectáculos", href: "#" },
+  { label: "Eventos", href: "/events" },
+  { label: "Conciertos", href: "/events?category=concert" },
+  { label: "Teatro y espectáculos", href: "/events?category=theater" },
 ];
 
 export function Header({ className }: HeaderProps) {
@@ -33,19 +34,24 @@ export function Header({ className }: HeaderProps) {
           className="hidden items-center gap-6 md:flex"
         >
           {CATEGORY_LINKS.map((link) => (
-            <a
+            <Link
               key={link.label}
               href={link.href}
               className="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-primary"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="ghost">Iniciar sesión</Button>
-          <Button variant="default">Registrarse</Button>
+          <Link
+            href="/organizer"
+            className="hidden cursor-pointer text-sm font-medium text-muted-foreground transition-colors hover:text-primary lg:inline"
+          >
+            Vender entradas
+          </Link>
+          <HeaderAccount />
         </div>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HeaderAccount } from "@/modules/account/components/header-account";
 
 interface HeaderProps {
   className?: string;
@@ -44,10 +44,7 @@ export function Header({ className }: HeaderProps) {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="ghost">Iniciar sesión</Button>
-          <Button variant="default">Registrarse</Button>
-        </div>
+        <HeaderAccount />
       </div>
     </header>
   );

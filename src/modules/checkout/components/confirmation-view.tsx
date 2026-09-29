@@ -9,7 +9,7 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import { ConfirmationActions } from "@/modules/checkout/components/confirmation-actions";
 import { OrderTicketCard } from "@/modules/checkout/components/order-ticket-card";
-import { useOrderStore } from "@/modules/checkout/store/order.store";
+import { selectLastOrder, useOrderStore } from "@/modules/checkout/store/order.store";
 import type { EventDetail } from "@/modules/events/types/event.types";
 import { usePurchaseStore } from "@/modules/tickets/store/purchase.store";
 
@@ -27,7 +27,7 @@ const NEXT_STEPS = [
 /** Confirmación de compra: lee el último pedido del store (sessionStorage). */
 export function ConfirmationView({ event, className }: ConfirmationViewProps) {
   const hydrated = useHydrated();
-  const storedOrder = useOrderStore((state) => state.order);
+  const storedOrder = useOrderStore(selectLastOrder);
   const order = hydrated && storedOrder?.eventId === event.id ? storedOrder : null;
   const clearSelection = usePurchaseStore((state) => state.clear);
   const selectionEventId = usePurchaseStore((state) => state.eventId);
@@ -47,7 +47,7 @@ export function ConfirmationView({ event, className }: ConfirmationViewProps) {
         <Ticket className="size-10 text-muted-foreground" aria-hidden="true" />
         <h1 className="text-2xl font-bold tracking-tight">No encontramos tu pedido</h1>
         <p className="text-muted-foreground">
-          La confirmación solo está disponible en la pestaña donde hiciste la compra.
+          No hay una compra reciente para este evento en este navegador.
         </p>
         <Link
           href={`/events/${event.id}`}

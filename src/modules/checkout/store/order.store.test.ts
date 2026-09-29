@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { RESERVATION_MINUTES, useOrderStore } from "@/modules/checkout/store/order.store";
+import { RESERVATION_MINUTES, selectLastOrder, useOrderStore } from "@/modules/checkout/store/order.store";
 import type { Order } from "@/modules/checkout/types/order.types";
 
 const NOW = new Date("2026-09-29T17:00:00Z");
@@ -21,8 +21,8 @@ const ORDER: Order = {
 };
 
 beforeEach(() => {
-  sessionStorage.clear();
-  useOrderStore.setState({ order: null, reservationExpiresAt: {} });
+  localStorage.clear();
+  useOrderStore.setState({ orders: [], lastOrderNumber: null, reservationExpiresAt: {} });
 });
 
 describe("order.store", () => {
@@ -52,16 +52,27 @@ describe("order.store", () => {
     expect(Object.keys(store().reservationExpiresAt)).toEqual(["theater-01"]);
   });
 
-  it("completeOrder saves the order and releases its reservation", () => {
+  it("completeOrder adds the order to the history, marks it as last and releases its reservation", () => {
     store().startReservation("concert-01", NOW);
     store().completeOrder(ORDER);
-    expect(store().order).toEqual(ORDER);
+    expect(store().orders).toEqual([ORDER]);
+    expect(selectLastOrder(store())).toEqual(ORDER);
     expect(store().reservationExpiresAt).toEqual({});
   });
 
-  it("persists the order in sessionStorage", () => {
+  it("keeps the most recent order first and never duplicates an order number", () => {
+    const second = { ...ORDER, number: "TK-30000", eventId: "theater-01" };
     store().completeOrder(ORDER);
-    const saved = JSON.parse(sessionStorage.getItem("ticketera-order") ?? "{}");
-    expect(saved.state.order.number).toBe("TK-24817");
+    store().completeOrder(second);
+    store().completeOrder(second);
+    expect(store().orders.map((order) => order.number)).toEqual(["TK-30000", "TK-24817"]);
+    expect(selectLastOrder(store())?.number).toBe("TK-30000");
+  });
+
+  it("persists the history in localStorage", () => {
+    store().completeOrder(ORDER);
+    const saved = JSON.parse(localStorage.getItem("ticketera-orders") ?? "{}");
+    expect(saved.state.orders[0].number).toBe("TK-24817");
+    expect(saved.state.lastOrderNumber).toBe("TK-24817");
   });
 });

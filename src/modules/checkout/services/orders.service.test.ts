@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createOrder } from "@/modules/checkout/services/orders.service";
+import { createOrder, getTicketCode } from "@/modules/checkout/services/orders.service";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
 import { buildPurchaseSummary } from "@/modules/tickets/store/purchase.store";
 
@@ -55,5 +55,12 @@ describe("createOrder", () => {
       createdAt: "2026-09-29T17:00:00.000Z",
     });
     expect(JSON.stringify(order)).not.toMatch(/card\.|number":"4|cvv|expiry/);
+  });
+});
+
+describe("getTicketCode", () => {
+  it("appends the two-digit ticket position to the order number", () => {
+    expect(getTicketCode(order, 0)).toBe("TK-23335-01");
+    expect(getTicketCode(order, 3)).toBe("TK-23335-04");
   });
 });

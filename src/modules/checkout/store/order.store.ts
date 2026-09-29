@@ -6,14 +6,16 @@ import type { Order } from "@/modules/checkout/types/order.types";
 export const RESERVATION_MINUTES = 10;
 
 interface OrderState {
-  /** Último pedido confirmado (el que muestra la confirmación). */
-  order: Order | null;
+  /** Historial de pedidos confirmados en este navegador, más reciente primero. */
+  orders: Order[];
+  /** Número del último pedido confirmado (el que muestra la confirmación). */
+  lastOrderNumber: string | null;
   /** eventId → vencimiento ISO de la reserva de entradas. */
   reservationExpiresAt: Record<string, string>;
   /** Crea la reserva si no existe o si ya venció; devuelve su vencimiento. */
   startReservation: (eventId: string, now?: Date) => string;
   resetReservation: (eventId: string) => void;
-  /** Guarda el pedido y libera la reserva de su evento. */
+  /** Agrega el pedido al historial, lo marca como el último y libera la reserva de su evento. */
   completeOrder: (order: Order) => void;
 }
 
@@ -21,10 +23,16 @@ function withoutKey(record: Record<string, string>, key: string): Record<string,
   return Object.fromEntries(Object.entries(record).filter(([entryKey]) => entryKey !== key));
 }
 
+/** Último pedido confirmado, o null. */
+export function selectLastOrder(state: Pick<OrderState, "orders" | "lastOrderNumber">): Order | null {
+  return state.orders.find((order) => order.number === state.lastOrderNumber) ?? null;
+}
+
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
-      order: null,
+      orders: [],
+      lastOrderNumber: null,
       reservationExpiresAt: {},
 
       startReservation: (eventId, now = new Date()) => {
@@ -43,14 +51,20 @@ export const useOrderStore = create<OrderState>()(
 
       completeOrder: (order) =>
         set((state) => ({
-          order,
+          orders: [order, ...state.orders.filter((item) => item.number !== order.number)],
+          lastOrderNumber: order.number,
           reservationExpiresAt: withoutKey(state.reservationExpiresAt, order.eventId),
         })),
     }),
     {
-      name: "ticketera-order",
-      storage: createJSONStorage(() => sessionStorage),
-      partialize: ({ order, reservationExpiresAt }) => ({ order, reservationExpiresAt }),
+      // localStorage: "Mis entradas" debe ver los pedidos desde cualquier pestaña.
+      name: "ticketera-orders",
+      storage: createJSONStorage(() => localStorage),
+      partialize: ({ orders, lastOrderNumber, reservationExpiresAt }) => ({
+        orders,
+        lastOrderNumber,
+        reservationExpiresAt,
+      }),
     }
   )
 );

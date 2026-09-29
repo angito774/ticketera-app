@@ -44,7 +44,15 @@ export function Header({ className }: HeaderProps) {
           ))}
         </nav>
 
-        <HeaderAccount />
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/organizer"
+            className="hidden cursor-pointer text-sm font-medium text-muted-foreground transition-colors hover:text-primary lg:inline"
+          >
+            Vender entradas
+          </Link>
+          <HeaderAccount />
+        </div>
       </div>
     </header>
   );

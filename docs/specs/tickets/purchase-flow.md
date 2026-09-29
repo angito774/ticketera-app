@@ -2,7 +2,7 @@
 
 **Estado**: done
 **Aprobado por**: usuario — 2026-09-29 (Fase 1, con la decisión de paleta "Migrar a índigo del diseño")
-**Fase**: 1 de 5 completada — Fase 2 completada en `docs/specs/checkout/checkout-and-confirmation.md`; Fase 3 completada en `docs/specs/events/event-search.md`; Fase 4 completada en `docs/specs/account/auth-and-my-tickets.md`; Fase 5 (organizador) pendiente de spec y aprobación
+**Fase**: 1 de 5 completada — Fase 2 completada en `docs/specs/checkout/checkout-and-confirmation.md`; Fase 3 completada en `docs/specs/events/event-search.md`; Fase 4 completada en `docs/specs/account/auth-and-my-tickets.md`; Fase 5 completada en `docs/specs/organizer/organizer-panel.md`. Plan de features completo
 
 ## Contexto
 
@@ -31,7 +31,7 @@ Motivos: el mapa se describe con datos (`VenueLayout`: formas de zonas + filas/a
 | 2 | 5 · Checkout y pago, 6 · Confirmación de compra | done (`docs/specs/checkout/checkout-and-confirmation.md`) |
 | 3 | 2 · Búsqueda y listado (filtros funcionales sobre el mock) | done (`docs/specs/events/event-search.md`) |
 | 4 | 7 · Login y registro, 6 · Mis entradas | done (`docs/specs/account/auth-and-my-tickets.md`) |
-| 5 | 8 · Panel de organizador, 8 · Crear evento | pendiente |
+| 5 | 8 · Panel de organizador, 8 · Crear evento | done (`docs/specs/organizer/organizer-panel.md`) |
 
 Cada fase deja el proyecto compilando y con tests en verde, y requiere su propia aprobación. Solo la Fase 1 se detalla aquí.
 

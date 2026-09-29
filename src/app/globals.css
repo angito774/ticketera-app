@@ -43,6 +43,8 @@
   --color-cta-hover: var(--cta-hover);
   --color-cta-foreground: var(--cta-foreground);
   --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-brand-deep: var(--brand-deep);
   --color-brand-deep-foreground: var(--brand-deep-foreground);
   --color-warning-foreground: var(--warning-foreground);
@@ -88,6 +90,8 @@
   --cta-foreground: #18181B;
   --warning: #FFEDD5;
   --warning-foreground: #9A3412;
+  --success: #DCFCE7;
+  --success-foreground: #166534;
   --brand-deep: #1E1B4B;
   --brand-deep-foreground: #E0E7FF;
   --zone-1: #312E81;

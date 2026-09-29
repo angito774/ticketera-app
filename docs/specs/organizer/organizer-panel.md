@@ -1,7 +1,7 @@
 # Panel de organizador y crear evento (mock data)
 
-**Estado**: draft
-**Aprobado por**: —
+**Estado**: done
+**Aprobado por**: usuario — 2026-09-29 (indicó "continúa con la fase 5" sobre esta spec en borrador)
 **Fase**: 5 de 5 del plan de features (ver `docs/specs/tickets/purchase-flow.md` › Plan de fases)
 
 ## Contexto
@@ -124,6 +124,15 @@ interface OrganizerState {
 ### Grupo 2 (serial)
 
 - **T-6**: Formulario completo y rutas de crear/editar. — archivos: `src/modules/organizer/components/event-editor.tsx`, `src/app/organizer/events/new/page.tsx`, `src/app/organizer/events/[id]/edit/page.tsx` — tests: no — cubre: AC-4 a AC-9
+
+### Notas de implementación (desvíos menores respecto del plan)
+
+- El enlace "Vender entradas" del header se muestra desde `lg` (no `md`): entre `md` y `lg` no entraba junto a la navegación y los botones de cuenta.
+- El aviso tras guardar se pasa por la URL (`/organizer?saved=draft|published`).
+- Categoría y descripción usan `<select>` y `<textarea>` nativos con las clases de `Input` (el registro de shadcn sigue bloqueado).
+- La URL `blob:` de la portada se libera al reemplazarla o quitarla (no al desmontar, para no romper la vista previa con el doble montaje de Strict Mode en desarrollo).
+
+Verificado: `npm run lint`, `npm run test` (153 tests) y `npm run build` en verde; recorrido con Playwright en 1440 px y 390 px: KPIs y filtros, menú móvil, errores y foco al publicar vacío, errores por tipo de entrada en vivo, capacidad total, archivo inválido e imagen válida con vista previa, publicar (aviso y nueva fila), borrador con solo nombre, editar el borrador mock sin duplicarlo, editar un publicado ("No encontramos este borrador"); regresión de las Fases 1–4 sin errores de consola ni scroll horizontal.
 
 ## Fases siguientes
 

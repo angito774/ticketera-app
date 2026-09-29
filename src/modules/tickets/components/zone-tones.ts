@@ -1,11 +1,11 @@
 import type { VenueZone, ZoneTone } from "@/modules/tickets/types/venue.types";
 
 interface ZoneToneClasses {
-  /** Relleno SVG de la zona en el mapa. */
+  /** Relleno SVG de la zona o de la butaca en los mapas (fondo oscuro). */
   fill: string;
   /** Color del texto SVG sobre la zona. */
   textFill: string;
-  /** Muestra de color en listas y leyendas. */
+  /** Muestra de color en listas y leyendas (fondo claro u oscuro). */
   swatch: string;
 }
 
@@ -17,9 +17,10 @@ const TONE_CLASSES: Record<ZoneTone, ZoneToneClasses> = {
   5: { fill: "fill-zone-5", textFill: "fill-zone-foreground-soft", swatch: "bg-zone-5" },
 };
 
+/** Agotada: sin color de precio y con rayado (el patrón lo dibuja `VenueMap`). */
 const SOLD_OUT_CLASSES: ZoneToneClasses = {
-  fill: "fill-muted",
-  textFill: "fill-muted-foreground",
+  fill: "fill-white/10",
+  textFill: "fill-white/55",
   swatch: "bg-border",
 };
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getAllEvents, getEventById } from "@/modules/events/services/events.service";
-import { getVenueLayout } from "@/modules/tickets/services/venues.service";
+import { shapesOverlap } from "@/modules/tickets/services/venue-geometry";
+import { SEAT_SPACING, getVenueLayout } from "@/modules/tickets/services/venues.service";
 import type { VenueLayoutId } from "@/modules/tickets/types/venue.types";
 
 const LAYOUT_IDS: VenueLayoutId[] = ["stadium", "theater"];
@@ -62,6 +63,49 @@ describe("venues.service", () => {
       const { zones } = getVenueLayout(event.layoutId, event.price);
       const available = zones.filter((zone) => zone.status !== "sold-out");
       expect(Math.min(...available.map((zone) => zone.price))).toBe(event.price);
+    }
+  });
+
+  it.each(LAYOUT_IDS)("draws %s zones that do not overlap each other or the stage", (id) => {
+    const { zones, stage } = getVenueLayout(id, 100);
+    const shapes = [stage.geometry, ...zones.map((zone) => zone.shape.geometry)];
+    for (let i = 0; i < shapes.length; i++) {
+      for (let j = i + 1; j < shapes.length; j++) {
+        expect(shapesOverlap(shapes[i], shapes[j]), `${i} vs ${j}`).toBe(false);
+      }
+    }
+  });
+
+  it.each(LAYOUT_IDS)("keeps every %s zone inside the viewBox", (id) => {
+    const { zones, viewBox } = getVenueLayout(id, 100);
+    for (const zone of zones) {
+      const { x, y, width, height } = zone.shape.bounds;
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(x + width).toBeLessThanOrEqual(viewBox.width);
+      expect(y + height).toBeLessThanOrEqual(viewBox.height);
+    }
+  });
+
+  it("uses curved tribunes in the stadium and a fan of bands in the theater", () => {
+    const kinds = (id: VenueLayoutId) =>
+      Object.fromEntries(getVenueLayout(id, 100).zones.map((zone) => [zone.id, zone.shape.geometry.kind]));
+    expect(kinds("stadium")).toEqual({ vip: "rect", general: "rect", occidente: "arc", oriente: "arc", norte: "arc" });
+    expect(Object.values(kinds("theater")).every((kind) => kind === "arc")).toBe(true);
+  });
+
+  it("places seats on curved rows without overlapping", () => {
+    for (const zone of getVenueLayout("theater", 100).zones) {
+      for (const row of zone.rows) {
+        const ys = row.seats.map((seat) => seat.y);
+        expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(1);
+        for (let i = 1; i < row.seats.length; i++) {
+          const [a, b] = [row.seats[i - 1], row.seats[i]];
+          expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeGreaterThanOrEqual(SEAT_SPACING - 0.5);
+        }
+        expect(row.labelPositions[0].x).toBeLessThan(row.seats[0].x);
+        expect(row.labelPositions[1].x).toBeGreaterThan(row.seats[row.seats.length - 1].x);
+      }
     }
   });
 });

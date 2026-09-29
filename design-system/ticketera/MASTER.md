@@ -220,6 +220,49 @@ gsap.from('.grid-item', { opacity: 0, scale: 0.92, y: 16, duration: 0.4, stagger
 
 ---
 
+## Internal & Transactional Patterns
+
+> Extiende el Design System más allá de la landing pública: dashboards internos (Super admin, Administrador, Organizador), autenticación (Clerk) y checkout (Stripe). Reutiliza los mismos tokens de color/tipografía/spacing/shadow definidos arriba — no se introduce una paleta nueva para el "back office". Entidades y roles referenciados aquí están definidos en `docs/specs/database/data-model.md`.
+
+### Dashboard Shell (Admin / Organizador / Super admin)
+
+- **Layout:** sidebar fijo a la izquierda (`w-64` desktop, colapsable a íconos `w-16` en `<1024px`, oculto tras botón hamburguesa en `<768px`) + topbar (`h-16`) con breadcrumb/título de sección y el avatar/menú de usuario (el `<UserButton>` de Clerk puede reusarse aquí, tematizado).
+- **Colores:** fondo del sidebar `--muted` (`#F4F4F5`), fondo del área de contenido `--background` (blanco); ítem de nav activo usa `--primary` (índigo) como acento (borde/fondo izquierdo sutil, `bg-primary/10`, texto `--primary`) — nunca `--cta` (naranja) en navegación, ese tono se reserva exclusivamente para acciones de compra.
+- **Componente a agregar:** shadcn `sidebar` (`npx shadcn@latest add sidebar`) — no construir a mano; ya resuelve colapso, estado persistente y accesibilidad de teclado.
+- **Navegación por rol:** el sidebar renderiza ítems distintos según `organization_members.role` / `users.is_super_admin`. Un ítem que el rol no debería ver se filtra en el árbol de datos antes de renderizar, nunca se oculta solo con CSS.
+
+### Data Table Pattern
+
+- **Base:** `@tanstack/react-table` (ya instalado, primer uso real) + shadcn `table` (`npx shadcn@latest add table`).
+- **Estados obligatorios por tabla:** loading (skeleton de filas, shadcn `skeleton`), vacío (ver "Empty states" abajo), error (mensaje + botón "Reintentar", `variant="outline"`), y el estado con datos.
+- **Fila:** altura `h-12`, borde inferior `--border`, hover `bg-muted/50`; acciones por fila en un menú `⋮` (shadcn `dropdown-menu`) — no exponer más de 2 botones de acción en línea.
+- **Paginación:** controles al pie con `Button variant="outline"`, mismo componente que el resto del sistema.
+
+### Auth Forms (custom sobre Clerk headless)
+
+- Formularios propios con `Card` + `Input` + `Button` + `Label` (agregar `label` de shadcn) sobre los hooks `useSignIn`/`useSignUp` de Clerk — no se usan los componentes prearmados `<SignIn>`/`<SignUp>`.
+- **Layout:** `Card` centrado (`max-w-md`), logo arriba, título (`--text-section`), campos apilados (`gap-4`), botón primario de ancho completo, separador visual ("o") + botón secundario `variant="outline"` con ícono de Google para OAuth.
+- **Errores:** shadcn `alert` (`variant="destructive"`, `--destructive`) debajo del campo o del formulario, mapeando los errores que devuelven los hooks de Clerk — nunca un `alert()` nativo del navegador.
+- **Estados de carga:** botón primario con spinner inline + `disabled`; mismo patrón para login, registro, verificación de email y reseteo de password.
+
+### Checkout / Pago (Stripe)
+
+- **Selector de cantidad por `ticket_type`:** una fila por tipo de entrada (nombre, precio formateado `Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" })`, stepper +/-), deshabilitada cuando `quantity_sold >= quantity_total`.
+- **Resumen de orden:** `Card` lateral (desktop) o acordeón (mobile) con subtotal, descuento (si hay `coupon`) y total; botón `variant="cta"` ("Continuar al pago"/"Pagar S/ X") redirige a Stripe Checkout — no se construye un formulario de tarjeta propio. Sigue la misma convención ya usada en `checkout-and-confirmation.md` (naranja `--cta` reservado a acciones de compra).
+- **Retorno de Stripe:** dos pantallas dedicadas — éxito (ícono de check, resumen de orden, CTA "Ver mis entradas") y error/cancelado (mensaje, CTA "Reintentar pago"). Ambas reusan el mismo `Card` centrado que Auth Forms, para que los flujos transaccionales se sientan consistentes entre sí.
+
+### Ticket Digital (vista del comprador)
+
+- `Card` con imagen/thumbnail del evento, título, fecha/venue, código QR (`tickets.qr_code`) centrado, y un `Badge` de estado: `valid` (tinte `--primary`), `redeemed` (`--muted-foreground`), `cancelled` (`--destructive`).
+- Un ticket `redeemed` o `cancelled` reduce la opacidad del QR (`opacity-40`) para dejar claro que ya no es válido, sin ocultarlo (el staff en puerta puede necesitar verlo igual).
+
+### Stat Cards & Empty States
+
+- **Stat card:** `Card` compacto (ícono + label `--text-meta` + valor grande `--text-section` peso 700), usado en el home de cada dashboard (ej. "Eventos activos", "Entradas vendidas", "Ingresos del mes").
+- **Empty state genérico:** ícono `lucide` grande (`--color-muted-foreground`), mensaje corto y un CTA primario opcional (ej. "Aún no tienes eventos" + botón "Crear evento"). Un único componente reutilizable para toda tabla/lista vacía del back office — no se redacta un mensaje custom por pantalla salvo que el copy lo requiera.
+
+---
+
 ## Anti-Patterns (Do NOT Use)
 
 - ❌ No trust cues

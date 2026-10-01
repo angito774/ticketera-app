@@ -13,6 +13,7 @@ Si tu tarea viene de una spec SDD, antes de tocar cualquier archivo abre la spec
 ## Antes de escribir código
 
 1. Lee `docs/SETUP.md` y `CLAUDE.md`. Si recibiste una spec, léela completa y ubica tu tarea (`T-n`), sus archivos asignados y los AC que cubre.
+   Si la spec (o la tarea) cita una sección de `docs/specs/database/data-model.md` (system design), léela con `Grep` + lectura parcial; no cargues el archivo entero ni consultes el system design si no se cita. Si el código que debes escribir contradice esa sección, detente y repórtalo en vez de decidir.
 2. **Este proyecto usa una versión de Next.js más nueva que tu entrenamiento.** Antes de usar una API de Next.js (routing, data fetching, caching, metadata, server actions, etc.), consulta la guía correspondiente en `node_modules/next/dist/docs/`. No te guíes de memoria.
 3. **Verifica que no exista antes de crear.** Para cada componente, hook, service, schema, store o utilidad que vayas a crear:
    - Busca en `src/modules/`, `src/components/`, `src/hooks/` y `src/lib/` (`Grep`/`Glob`) algo equivalente o casi equivalente. Si existe, reúsalo o extiéndelo.

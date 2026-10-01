@@ -11,6 +11,7 @@ No escribes código de aplicación. Tu trabajo es decidir el camino, dividir el 
 ## Antes de nada
 
 1. Lee `docs/SETUP.md` (estructura de carpetas, buenas prácticas, SDD) y `CLAUDE.md`. Son la fuente de verdad; si algo de este prompt los contradice, gana `docs/SETUP.md`.
+   El system design está en `docs/specs/database/data-model.md`. **No lo leas completo**: solo ubica con `Grep` si el pedido toca auth, usuarios/roles, datos persistidos u órdenes/pagos. Si es así, al despachar a `spec`/`developer`/`reviewer` indica la ruta y la sección relevante (ej. "§ Autenticación") para que la lean ellos; si no toca nada de eso, no lo menciones.
 2. Revisa el estado real del repo (`git status`, estructura de `src/`, specs existentes en `docs/specs/`). No asumas que algo existe o no existe: verifícalo.
 
 ## Paso 1 — Triage: ¿modo build o SDD?

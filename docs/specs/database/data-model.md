@@ -18,6 +18,7 @@ Decisión tomada con el usuario: el MER real **sí modela zonas y asientos** (no
 
 ## Decisiones de arquitectura
 
+- **Autenticación**: **Clerk** con dos métodos: correo + contraseña y **Google (OAuth, social connection de Clerk)**. Clerk gestiona todo el flujo OAuth (redirección, consentimiento, tokens, sesión); la app **no** guarda contraseñas ni tokens de Google, ni implementa OAuth propio. Los scopes de Google se limitan a `openid email profile`. Si un correo ya existe con contraseña y entra con Google (o al revés), Clerk los enlaza en **una sola cuenta** siempre que el correo esté verificado — por eso `users.email` sigue siendo único. Reemplaza la sesión simulada de `useSessionStore` y el selector mock de `docs/specs/account/google-sign-in.md`.
 - **Roles**: `users.is_super_admin` es un flag global, fuera de cualquier organización. `admin`/`organizer` son valores de `organization_members.role`, un rol *dentro* de una organización. `Cliente` es cualquier usuario sin membresías que compra entradas.
 - **Organizaciones**: se usa el feature nativo **Clerk Organizations** (crear org, invitar miembros, asignar rol se maneja en Clerk). Postgres guarda una copia sincronizada vía webhook (`users`, `organizations`, `organization_members`) para poder hacer JOINs con eventos/órdenes — Clerk sigue siendo la fuente de verdad.
 - **Pagos**: **Stripe Connect** (marketplace) — cada organización tiene su cuenta conectada (`organizations.stripe_account_id`) y recibe el pago menos `orders.application_fee_amount`.
@@ -70,7 +71,10 @@ erDiagram
 | `id` | `text` PK | = Clerk user id (`user_...`) |
 | `email` | `text` unique, not null | |
 | `full_name` | `text` | nullable |
-| `avatar_url` | `text` | nullable |
+| `avatar_url` | `text` | nullable — con Google se llena con la foto de perfil |
+| `email_verified` | `boolean` not null default `false` | `true` siempre con Google; base del enlace de cuentas |
+| `auth_providers` | `text[]` not null default `'{}'` | métodos enlazados: `password`, `google`. Una cuenta puede tener ambos |
+| `last_sign_in_at` | `timestamptz` | nullable |
 | `is_super_admin` | `boolean` not null default `false` | flag global, fuera de cualquier org |
 | `created_at` / `updated_at` | `timestamptz` not null | |
 
@@ -338,13 +342,38 @@ Mapeo de los tipos mock existentes a las tablas reales que los reemplazarán cua
 
 Cuando exista una spec de implementación del backend, el `layoutId` fijo (`"stadium" | "theater"`) deja de generarse en código y pasa a ser datos reales en `venue_zones`/`venue_seats`, cargados una vez por venue.
 
+## Autenticación (Clerk + Google)
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario
+    participant App as Next.js (Ticketera)
+    participant C as Clerk
+    participant G as Google OAuth
+    participant DB as Postgres
+
+    U->>App: "Continuar con Google"
+    App->>C: iniciar sign-in/sign-up (strategy oauth_google)
+    C->>G: redirección + consentimiento (openid email profile)
+    G-->>C: código → identidad (email verificado, nombre, foto)
+    C-->>App: sesión (cookie) y redirección a `next` o /my-tickets
+    C->>App: webhook user.created / user.updated
+    App->>DB: upsert users (id, email, full_name, avatar_url, auth_providers)
+```
+
+- **Cliente** (`src/modules/account/`): el botón "Continuar con Google" del login/registro llama a la estrategia `oauth_google` de Clerk; el selector de cuentas mock se elimina.
+- **Servidor**: el middleware de Clerk protege las rutas privadas (`/my-tickets`, `/checkout`, panel de organizador). Los server actions/route handlers leen el `userId` de la sesión de Clerk, nunca de un parámetro del cliente.
+- **Primera vez con Google** equivale a registro: el webhook crea la fila en `users`. Un `users.id` es siempre el id de Clerk, sin importar el método de acceso.
+- **Entorno**: requiere un OAuth client en Google Cloud (consent screen + URI de redirección que entrega Clerk), configurado en el dashboard de Clerk, no en variables propias. Solo se agregan `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY`.
+
 ## Sincronización con Clerk
 
-`users`, `organizations` y `organization_members` son una **copia de solo lectura** de lo que existe en Clerk, mantenida vía webhooks (`user.created/updated`, `organization.created/updated`, `organizationMembership.created/updated/deleted`). Clerk sigue siendo la fuente de verdad para autenticación, invitaciones y gestión de roles; Postgres solo la necesita para hacer `JOIN` con `events`, `orders`, etc.
+`users`, `organizations` y `organization_members` son una **copia de solo lectura** de lo que existe en Clerk, mantenida vía webhooks (`user.created/updated/deleted`, `organization.created/updated`, `organizationMembership.created/updated/deleted`). Clerk sigue siendo la fuente de verdad para autenticación (incluido Google), invitaciones y gestión de roles; Postgres solo la necesita para hacer `JOIN` con `events`, `orders`, etc. `auth_providers`, `email_verified` y `avatar_url` se derivan de las `external_accounts` y `email_addresses` del payload de `user.*`; `last_sign_in_at` de `last_sign_in_at` en ese mismo payload.
 
 ## Fuera de alcance (esta versión)
 
 - Yape y PagoEfectivo como métodos de pago reales (quedan como opciones visuales del checkout mock; requeriría un proveedor de pagos local además de Stripe).
+- Otros proveedores sociales (Apple, Facebook), One Tap de Google y acceso a APIs de Google (Calendar, Contactos): solo se pide `openid email profile`.
 - Reembolsos parciales (solo `orders.status = 'refunded'` a nivel de orden completa).
 - Editor de mapas de venue para organizadores (crear/editar `venue_zones`/`venue_seats` desde UI) — hoy son datos que se cargarían manualmente o por script.
 - Instalación de Drizzle y escritura del schema real — corresponde a una spec de implementación posterior, ya con este documento como base aprobada.

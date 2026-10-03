@@ -1,6 +1,6 @@
 # Compra real de entradas con sesión de cliente (pago simulado)
 
-**Estado**: approved
+**Estado**: done
 **Aprobado por**: usuario — 2026-10-03 (respondió las 6 preguntas abiertas; la 5 se cambió: admin también ve clientes)
 **Fase**: 1 de 2 (la fase 2, aparte, sería el cobro real con Stripe)
 

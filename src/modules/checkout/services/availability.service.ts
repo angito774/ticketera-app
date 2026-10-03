@@ -10,8 +10,6 @@ import { getEventById } from "@/modules/events/services/events.service";
 import type { EventAvailability } from "@/modules/tickets/services/availability-overlay";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
 
-export type { EventAvailability };
-
 /** null si el evento no existe, no está publicado o no está en el catálogo con layout. */
 export async function getEventAvailability(slug: string): Promise<EventAvailability | null> {
   const detail = getEventById(slug);

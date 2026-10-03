@@ -7,7 +7,7 @@
 
 Este documento define el **modelo entidad-relación** de la base de datos real (Postgres — Neon en local, Cloud SQL en producción) para Ticketera: eventos, organizaciones, roles, entradas por zona/asiento, órdenes y pagos.
 
-Hasta ahora el proyecto solo tiene UI con **datos mock** (`docs/specs/events/`, `docs/specs/tickets/purchase-flow.md`, `docs/specs/checkout/checkout-and-confirmation.md`, todos `done`), sin backend ni base de datos real. Este MER es la base para una futura spec de implementación (instalar Drizzle ORM, escribir el schema TypeScript real y migrar contra Neon) — **no se instala nada ni se escribe schema en esta tarea**, solo se documenta el diseño.
+Hasta ahora el proyecto solo tiene UI con **datos mock** (`docs/specs/events/`, `docs/specs/tickets/purchase-flow.md`, `docs/specs/checkout/checkout-and-confirmation.md`, todos `done`), sin backend ni base de datos real. Este MER es la base de la implementación en Drizzle ORM: el schema TypeScript real vive en `src/db/schema/` y la migración inicial en `drizzle/` (ver "Implementación (Drizzle)"). Aplicar la migración contra Neon queda pendiente de configurar `DATABASE_URL`.
 
 El modelo se diseñó reconciliando dos fuentes que en algunos puntos no coincidían:
 
@@ -20,13 +20,13 @@ Decisión tomada con el usuario: el MER real **sí modela zonas y asientos** (no
 
 - **Autenticación**: **Clerk** con dos métodos: correo + contraseña y **Google (OAuth, social connection de Clerk)**. Clerk gestiona todo el flujo OAuth (redirección, consentimiento, tokens, sesión); la app **no** guarda contraseñas ni tokens de Google, ni implementa OAuth propio. Los scopes de Google se limitan a `openid email profile`. Si un correo ya existe con contraseña y entra con Google (o al revés), Clerk los enlaza en **una sola cuenta** siempre que el correo esté verificado — por eso `users.email` sigue siendo único. Reemplaza la sesión simulada de `useSessionStore` y el selector mock de `docs/specs/account/google-sign-in.md`.
 - **Roles**: `users.is_super_admin` es un flag global, fuera de cualquier organización. `admin`/`organizer` son valores de `organization_members.role`, un rol *dentro* de una organización. `Cliente` es cualquier usuario sin membresías que compra entradas.
-- **Organizaciones**: se usa el feature nativo **Clerk Organizations** (crear org, invitar miembros, asignar rol se maneja en Clerk). Postgres guarda una copia sincronizada vía webhook (`users`, `organizations`, `organization_members`) para poder hacer JOINs con eventos/órdenes — Clerk sigue siendo la fuente de verdad.
+- **Organizaciones**: ~~Clerk Organizations~~ **(decisión revisada)**: las organizaciones y sus membresías (`organizations`, `organization_members`) **viven solo en Postgres** y las administra la propia app desde `/admin`; Clerk solo es la fuente de verdad de la **identidad** (`users`, sincronizada por webhook). Motivo: Clerk Organizations exige activarse en el dashboard y no aporta nada que la app no resuelva con sus propias tablas. Los ids son `org_<uuid>` / `mem_<uuid>` generados por la app.
 - **Pagos**: **Stripe Connect** (marketplace) — cada organización tiene su cuenta conectada (`organizations.stripe_account_id`) y recibe el pago menos `orders.application_fee_amount`.
 - **Entradas**: modelo de **zonas + asientos**, no un precio único por evento. Un `venue` tiene `venue_zones` (generales o numeradas); las zonas numeradas tienen `venue_seats` físicos reutilizables entre eventos del mismo recinto. El precio y disponibilidad se fijan **por evento** en `ticket_types` (un venue se reusa, pero el precio de un concierto no tiene por qué ser el de otro en el mismo lugar).
 - **Reserva temporal (hold)**: el checkout ya aprobado reserva la selección por 10 minutos con cuenta regresiva (`docs/specs/checkout/checkout-and-confirmation.md`, AC-3). `ticket_holds` respalda esto: mientras el hold no expira, ese asiento/cupo no puede venderse a otro comprador.
 - **Categorías**: tabla `categories` gestionable por Super admin, no un enum fijo en código.
 - **Moneda**: `PEN` (soles), consistente con `Event.price` ya usado en la UI (`src/modules/events/types/event.types.ts`).
-- **ORM**: Drizzle (elegido, no instalado en esta tarea).
+- **ORM**: Drizzle (`drizzle-orm` + `drizzle-kit`) sobre Neon (`@neondatabase/serverless`, driver HTTP). Instalado.
 
 ## Diagrama ER
 
@@ -327,6 +327,17 @@ Tabla de log/auditoría; no dispara nada por sí sola (el envío real lo hace un
 | `ticket_status` | `valid`, `redeemed`, `cancelled` |
 | `notification_status` | `pending`, `sent`, `failed` |
 
+## Implementación (Drizzle)
+
+- **Schema**: `src/db/schema/` — `enums.ts`, `columns.ts` (helpers `createdAt`/`timestamps`), `identity.ts`, `venues.ts`, `events.ts`, `ticketing.ts`, `orders.ts`, `relations.ts`, reexportados en `index.ts`. Cliente `db` en `src/db/index.ts`.
+- **Convención**: camelCase en TypeScript, snake_case en Postgres (`casing: "snake_case"`).
+- **Migraciones**: `drizzle.config.ts` → carpeta `drizzle/`. Scripts: `npm run db:generate`, `db:migrate`, `db:push`, `db:studio`. Requiere `DATABASE_URL` en `.env`.
+- **Decisiones de implementación** (no definidas arriba):
+  - `ON DELETE`: las tablas hijas de org/evento/orden/venue usan `cascade`; las que dependen de datos de venta (`orders`, `events`, `venues`, `order_items`, `tickets`) usan `restrict` para preservar historial; FKs opcionales a usuario/cupón usan `set null`.
+  - Índices adicionales sobre todas las FK y sobre `events(status, starts_at)`, `event_seats(ticket_type_id, status)`, `ticket_holds(expires_at)`, `orders(event_id, status)`.
+  - `CHECK`: `price >= 0`, `tone` entre 1 y 5, cantidades `> 0`, `quantity_sold <= quantity_total`.
+  - `UNIQUE` en `ticket_holds.event_seat_id` y `tickets.event_seat_id` (un asiento, un hold activo y una entrada; NULL permite varios para zonas `general`).
+
 ## Relación con la UI ya construida (mock)
 
 Mapeo de los tipos mock existentes a las tablas reales que los reemplazarán cuando haya backend:
@@ -366,9 +377,22 @@ sequenceDiagram
 - **Primera vez con Google** equivale a registro: el webhook crea la fila en `users`. Un `users.id` es siempre el id de Clerk, sin importar el método de acceso.
 - **Entorno**: requiere un OAuth client en Google Cloud (consent screen + URI de redirección que entrega Clerk), configurado en el dashboard de Clerk, no en variables propias. Solo se agregan `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY`.
 
+## Roles y permisos (implementado)
+
+- **Super admin**: `users.is_super_admin`. Se asigna automáticamente al usuario cuyo correo (verificado en Clerk) coincide con `SUPER_ADMIN_EMAIL` (por defecto `nelson.nc421@gmail.com`), tanto en el webhook como en el sync perezoso al iniciar sesión. Nunca se quita por sync.
+- **Permisos** (`src/modules/auth/services/permissions.ts`): `organizations:manage` (solo super admin), `members:manage` (super admin; admin de la org), `events:manage` y `tickets:redeem` (admin y organizador de la org). `assignableRoles`: el super admin asigna `admin` y `organizer`; un admin solo `organizer` y solo en su organización.
+- **Fuente de verdad de autorización**: Postgres (`getCurrentUser()` / `requirePermission()` en `src/modules/auth/services/current-user.service.ts`). El rol más alto se refleja además en `publicMetadata.role` de Clerk **solo para la UI** (links del header).
+- **Sync de usuarios**: webhook `POST /api/webhooks/clerk` (`user.created/updated/deleted`, firma con `CLERK_WEBHOOK_SIGNING_SECRET`) + upsert perezoso en `getCurrentUser()` si el usuario aún no está en la DB. El webhook requiere configurar el endpoint en el dashboard de Clerk; sin él todo funciona igual por el sync perezoso.
+- **Panel `/admin`** (`src/modules/admin/`): el super admin crea organizaciones y agrega administradores/organizadores por correo (si la cuenta no existe en Clerk se crea con una contraseña temporal que se muestra una sola vez), cambia roles y quita miembros. Un admin gestiona solo organizadores de su organización. Nadie modifica su propia membresía.
+- **Rutas protegidas**: `proxy.ts` exige sesión en `/admin` y `/organizer`; el permiso se valida en servidor (`/admin` → `members:manage`, `/organizer` → `events:manage`).
+
+## Seed de eventos
+
+`npm run db:seed -- --organizer-email=<correo>` crea categorías, recintos (zonas + asientos), eventos, `ticket_types` y `event_seats` a partir de la data mock (`events.service.ts`, `venues.service.ts`), asociados a la organización del usuario indicado (debe tener una membresía). Es idempotente y publica cada evento al final. `npm run db:seed -- --dry-run` imprime el plan sin tocar la base. Código en `src/db/seed/`. **Aún no se ha ejecutado**: queda pendiente asignar el rol de organizador al usuario destino.
+
 ## Sincronización con Clerk
 
-`users`, `organizations` y `organization_members` son una **copia de solo lectura** de lo que existe en Clerk, mantenida vía webhooks (`user.created/updated/deleted`, `organization.created/updated`, `organizationMembership.created/updated/deleted`). Clerk sigue siendo la fuente de verdad para autenticación (incluido Google), invitaciones y gestión de roles; Postgres solo la necesita para hacer `JOIN` con `events`, `orders`, etc. `auth_providers`, `email_verified` y `avatar_url` se derivan de las `external_accounts` y `email_addresses` del payload de `user.*`; `last_sign_in_at` de `last_sign_in_at` en ese mismo payload.
+`users` es una **copia de solo lectura** de lo que existe en Clerk, mantenida vía webhooks (`user.created/updated/deleted`) y sync perezoso. Clerk sigue siendo la fuente de verdad para autenticación (incluido Google); los roles y organizaciones los gestiona la app (ver "Roles y permisos"). `auth_providers`, `email_verified` y `avatar_url` se derivan de las `external_accounts` y `email_addresses` del payload de `user.*`; `last_sign_in_at` de `last_sign_in_at` en ese mismo payload.
 
 ## Fuera de alcance (esta versión)
 
@@ -376,7 +400,6 @@ sequenceDiagram
 - Otros proveedores sociales (Apple, Facebook), One Tap de Google y acceso a APIs de Google (Calendar, Contactos): solo se pide `openid email profile`.
 - Reembolsos parciales (solo `orders.status = 'refunded'` a nivel de orden completa).
 - Editor de mapas de venue para organizadores (crear/editar `venue_zones`/`venue_seats` desde UI) — hoy son datos que se cargarían manualmente o por script.
-- Instalación de Drizzle y escritura del schema real — corresponde a una spec de implementación posterior, ya con este documento como base aprobada.
 
 ## Preguntas abiertas
 

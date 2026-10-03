@@ -1,3 +1,5 @@
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -18,7 +20,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        <QueryProvider>{children}</QueryProvider>
+        <ClerkProvider appearance={{ theme: shadcn }}>
+          <QueryProvider>{children}</QueryProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

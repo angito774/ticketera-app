@@ -1,51 +1,80 @@
-export const ORG_ROLES = ["admin", "organizer"] as const;
-export type OrgRole = (typeof ORG_ROLES)[number];
-
-/** Rol global de la persona: el más alto que tenga. `customer` = sin membresías. */
-export type AppRole = "super_admin" | OrgRole | "customer";
+/** Rol global de la persona, derivado de sus permisos. `customer` = sin permisos de gestión. */
+export type AppRole = "super_admin" | "admin" | "organizer" | "customer";
 
 export type Permission =
   | "organizations:manage"
+  | "roles:manage"
   | "members:manage"
   | "events:manage"
   | "tickets:redeem";
 
-export interface AuthSubject {
-  isSuperAdmin: boolean;
-  memberships: { organizationId: string; role: OrgRole }[];
+export const ASSIGNABLE_PERMISSIONS = [
+  "members:manage",
+  "events:manage",
+  "tickets:redeem",
+] as const;
+
+export interface RoleDef {
+  id: string;
+  name: string;
+  permissions: Permission[];
+  isSystem: boolean;
 }
 
-const ORG_ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
-  admin: ["members:manage", "events:manage", "tickets:redeem"],
-  organizer: ["events:manage", "tickets:redeem"],
-};
+export interface AuthMembership {
+  organizationId: string;
+  roleId: string;
+  permissions: Permission[];
+}
 
-/** Super admin: todo. Resto: depende del rol en la organización (o en alguna, si no se indica `organizationId`). */
+export interface AuthSubject {
+  isSuperAdmin: boolean;
+  memberships: AuthMembership[];
+}
+
+function isAssignable(permission: Permission): boolean {
+  return (ASSIGNABLE_PERMISSIONS as readonly Permission[]).includes(permission);
+}
+
+/** Super admin: todo. Resto: solo permisos asignables que tenga el rol en la organización (o en alguna, si no se indica `organizationId`). */
 export function can(
   subject: AuthSubject,
   permission: Permission,
   organizationId?: string,
 ): boolean {
   if (subject.isSuperAdmin) return true;
+  if (!isAssignable(permission)) return false;
   return subject.memberships.some(
     (m) =>
       (organizationId === undefined || m.organizationId === organizationId) &&
-      ORG_ROLE_PERMISSIONS[m.role].includes(permission),
+      m.permissions.includes(permission),
   );
 }
 
-/** Roles que el sujeto puede asignar en una organización: el super admin cualquiera; un admin solo organizadores. */
+/** Roles que el sujeto puede asignar en una organización: el super admin cualquiera; con `members:manage`, solo roles sin `members:manage` y con permisos propios. */
 export function assignableRoles(
   subject: AuthSubject,
   organizationId: string,
-): OrgRole[] {
-  if (subject.isSuperAdmin) return [...ORG_ROLES];
-  return can(subject, "members:manage", organizationId) ? ["organizer"] : [];
+  roles: RoleDef[],
+): RoleDef[] {
+  if (subject.isSuperAdmin) return roles;
+  if (!can(subject, "members:manage", organizationId)) return [];
+  const own = new Set(
+    subject.memberships
+      .filter((m) => m.organizationId === organizationId)
+      .flatMap((m) => m.permissions)
+      .filter(isAssignable),
+  );
+  return roles.filter(
+    (r) =>
+      !r.permissions.includes("members:manage") &&
+      r.permissions.every((p) => own.has(p)),
+  );
 }
 
 export function highestRole(subject: AuthSubject): AppRole {
   if (subject.isSuperAdmin) return "super_admin";
-  if (subject.memberships.some((m) => m.role === "admin")) return "admin";
-  if (subject.memberships.length > 0) return "organizer";
+  if (can(subject, "members:manage")) return "admin";
+  if (can(subject, "events:manage")) return "organizer";
   return "customer";
 }

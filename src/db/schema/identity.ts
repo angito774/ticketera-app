@@ -1,7 +1,19 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, text, unique } from "drizzle-orm/pg-core";
 import { createdAt, timestamps, tstz } from "./columns";
-import { orgRole, stripeConnectStatus } from "./enums";
+import { stripeConnectStatus } from "./enums";
+
+export const roles = pgTable("roles", {
+  id: text().primaryKey(), // slug
+  name: text().notNull().unique(),
+  description: text(),
+  permissions: text()
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  isSystem: boolean().notNull().default(false),
+  ...timestamps(),
+});
 
 // Copia sincronizada desde Clerk vía webhook (Clerk es la fuente de verdad).
 export const users = pgTable("users", {
@@ -39,11 +51,14 @@ export const organizationMembers = pgTable(
     userId: text()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: orgRole().notNull(),
+    roleId: text()
+      .notNull()
+      .references(() => roles.id, { onDelete: "restrict" }),
     createdAt: createdAt(),
   },
   (t) => [
     unique("organization_members_org_user_uq").on(t.organizationId, t.userId),
     index("organization_members_user_idx").on(t.userId),
+    index("organization_members_role_idx").on(t.roleId),
   ],
 );

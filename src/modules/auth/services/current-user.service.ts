@@ -16,6 +16,7 @@ import {
   type AuthSubject,
   type Permission,
 } from "@/modules/auth/services/permissions";
+import { toAuthSubject } from "@/modules/auth/services/subject";
 import {
   syncRoleMetadata,
   upsertUser,
@@ -31,7 +32,7 @@ export interface CurrentUser extends AuthSubject {
 async function loadUser(id: string) {
   return db.query.users.findFirst({
     where: eq(users.id, id),
-    with: { memberships: true },
+    with: { memberships: { with: { role: true } } },
   });
 }
 
@@ -56,13 +57,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   }
   if (!row) return null;
 
-  const subject: AuthSubject = {
-    isSuperAdmin: row.isSuperAdmin,
-    memberships: row.memberships.map((m) => ({
-      organizationId: m.organizationId,
-      role: m.role,
-    })),
-  };
+  const subject = toAuthSubject(row);
   return {
     ...subject,
     id: row.id,

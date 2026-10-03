@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
 import { events } from "./events";
-import { organizationMembers, organizations, users } from "./identity";
+import { organizationMembers, organizations, roles, users } from "./identity";
 import { notifications, orderItems, orders, tickets } from "./orders";
 import { coupons, eventSeats, ticketHolds, ticketTypes } from "./ticketing";
 import { categories, venueSeats, venueZones, venues } from "./venues";
@@ -30,8 +30,16 @@ export const organizationMembersRelations = relations(
       fields: [organizationMembers.userId],
       references: [users.id],
     }),
+    role: one(roles, {
+      fields: [organizationMembers.roleId],
+      references: [roles.id],
+    }),
   }),
 );
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  members: many(organizationMembers),
+}));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
   events: many(events),

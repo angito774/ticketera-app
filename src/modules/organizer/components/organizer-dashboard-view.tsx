@@ -1,22 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, CheckCircle2, Plus } from "lucide-react";
+import { AlertCircle, CalendarPlus, CheckCircle2, Plus } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
-import { useHydrated } from "@/hooks/use-hydrated";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { EventsApiError, useEvents } from "@/modules/events/hooks/use-events";
+import { parseEventListParams, type EventListStatus } from "@/modules/events/schemas/event-list.schema";
 import { OrganizerEventsList } from "@/modules/organizer/components/organizer-events-list";
 import { SummaryKpis } from "@/modules/organizer/components/summary-kpis";
-import {
-  ORGANIZER_EVENTS,
-  filterOrganizerEvents,
-  getOrganizerSummary,
-  mergeOrganizerEvents,
-} from "@/modules/organizer/services/organizer.service";
-import { useOrganizerStore } from "@/modules/organizer/store/organizer.store";
-import type { OrganizerEventFilter } from "@/modules/organizer/types/organizer.types";
 
 export type SaveNotice = "draft" | "published" | null;
 
@@ -24,7 +17,7 @@ interface OrganizerDashboardViewProps {
   notice: SaveNotice;
 }
 
-const FILTERS: { key: OrganizerEventFilter; label: string }[] = [
+const FILTERS: { key: EventListStatus; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "published", label: "Publicados" },
   { key: "draft", label: "Borradores" },
@@ -37,19 +30,39 @@ const NOTICE_TEXT: Record<Exclude<SaveNotice, null>, string> = {
 
 const CREATE_CLASSES = "h-11 gap-2 rounded-xl px-4 text-[0.9375rem] font-semibold";
 
-/** Resumen del organizador: KPIs y eventos (mock + guardados en el navegador). */
-export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) {
-  const hydrated = useHydrated();
-  const savedEvents = useOrganizerStore((state) => state.savedEvents);
-  const [filter, setFilter] = useState<OrganizerEventFilter>("all");
+const BASE_PARAMS = parseEventListParams({});
 
-  // Antes de hidratar solo se muestran los mock, igual que el HTML del servidor.
-  const events = useMemo(
-    () => mergeOrganizerEvents(ORGANIZER_EVENTS, hydrated ? savedEvents : []),
-    [hydrated, savedEvents]
+function errorMessage(error: Error): string {
+  if (error instanceof EventsApiError) {
+    if (error.status === 401) return "Inicia sesión para ver tus eventos.";
+    if (error.status === 403) return "No tienes permiso para ver estos eventos.";
+  }
+  return "No se pudieron cargar tus eventos. Inténtalo de nuevo.";
+}
+
+function ListSkeleton() {
+  return (
+    <div aria-busy="true" className="flex flex-col gap-3 lg:px-5">
+      <span className="sr-only" role="status">
+        Cargando eventos
+      </span>
+      {[0, 1, 2].map((item) => (
+        <div key={item} aria-hidden="true" className="h-24 animate-pulse rounded-2xl bg-muted" />
+      ))}
+    </div>
   );
-  const summary = getOrganizerSummary(events);
-  const visible = filterOrganizerEvents(events, filter);
+}
+
+/** Resumen del organizador: KPIs y eventos reales desde la API. */
+export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) {
+  const [filter, setFilter] = useState<EventListStatus>("all");
+  const { data, error, isPending, isError, isPlaceholderData, refetch, isRefetching } = useEvents({
+    ...BASE_PARAMS,
+    scope: "organizer",
+    status: filter,
+  });
+
+  const events = data?.events ?? [];
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
@@ -71,7 +84,12 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
         </p>
       )}
 
-      <SummaryKpis {...summary} />
+      <SummaryKpis
+        loading={isPending}
+        sold={data?.summary.sold}
+        revenue={data?.summary.revenue}
+        published={data?.summary.published}
+      />
 
       <section className="flex flex-col gap-4 rounded-3xl border-0 bg-transparent lg:border lg:bg-card lg:py-5">
         <div className="flex flex-wrap items-center justify-between gap-3 lg:px-5">
@@ -84,7 +102,7 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
                 aria-pressed={filter === item.key}
                 onClick={() => setFilter(item.key)}
                 className={cn(
-                  "h-9 cursor-pointer rounded-lg px-3 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring",
+                  "h-11 cursor-pointer rounded-lg px-3 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring lg:h-9",
                   filter === item.key ? "bg-background font-semibold shadow-sm lg:bg-foreground lg:text-background" : "font-medium text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -94,7 +112,22 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
           </div>
         </div>
 
-        {visible.length === 0 ? (
+        {isPending ? (
+          <ListSkeleton />
+        ) : isError ? (
+          <div
+            role="alert"
+            className="mx-0 flex flex-col items-center gap-3 rounded-3xl border-[1.5px] border-dashed px-6 py-12 text-center lg:mx-5"
+          >
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+              <AlertCircle className="size-6" aria-hidden="true" />
+            </span>
+            <span className="font-semibold">{errorMessage(error)}</span>
+            <Button type="button" variant="outline" className="h-11 px-4" disabled={isRefetching} onClick={() => refetch()}>
+              Reintentar
+            </Button>
+          </div>
+        ) : events.length === 0 ? (
           <div className="mx-0 flex flex-col items-center gap-3 rounded-3xl border-[1.5px] border-dashed px-6 py-12 text-center lg:mx-5">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-primary">
               <CalendarPlus className="size-6" aria-hidden="true" />
@@ -105,7 +138,10 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
             </Link>
           </div>
         ) : (
-          <OrganizerEventsList events={visible} />
+          <OrganizerEventsList
+            events={events}
+            className={cn("transition-opacity", isPlaceholderData && "opacity-60")}
+          />
         )}
       </section>
     </div>

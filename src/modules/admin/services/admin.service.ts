@@ -1,21 +1,22 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { clerkClient } from "@clerk/nextjs/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
+import { isUniqueViolation } from "@/lib/pg-errors";
 import { organizationMembers, organizations } from "@/db/schema";
-import {
-  slugify,
-  type AddMemberInput,
-  type CreateOrganizationInput,
-} from "@/modules/admin/schemas/admin.schema";
+import type { AddMemberInput } from "@/modules/admin/schemas/admin.schema";
+import type { OrganizationInput } from "@/modules/admin/schemas/organization.schema";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 import { fromClerkUser } from "@/modules/auth/services/clerk-user";
+import { addMemberGuardError, memberGuardError } from "@/modules/admin/services/member-guard";
+import { loadRoleDefs } from "@/modules/admin/services/role-defs";
 import {
   assignableRoles,
   can,
-  type OrgRole,
+  type RoleDef,
 } from "@/modules/auth/services/permissions";
 import {
   syncRoleMetadata,
@@ -24,69 +25,27 @@ import {
 
 export class AdminError extends Error {}
 
-export interface MemberRow {
-  id: string;
-  userId: string;
-  email: string;
-  fullName: string | null;
-  role: OrgRole;
-}
-
-export interface OrganizationRow {
-  id: string;
-  name: string;
-  slug: string;
-  members: MemberRow[];
-  /** Roles que el usuario actual puede asignar aquí (vacío = solo lectura). */
-  assignableRoles: OrgRole[];
-}
-
-/** Organizaciones que el actor puede ver: todas (super admin) o donde administra miembros. */
-export async function listOrganizations(
-  actor: CurrentUser,
-): Promise<OrganizationRow[]> {
-  const orgIds = actor.isSuperAdmin
-    ? null
-    : actor.memberships
-        .filter((m) => can(actor, "members:manage", m.organizationId))
-        .map((m) => m.organizationId);
-  if (orgIds && orgIds.length === 0) return [];
-
-  const rows = await db.query.organizations.findMany({
-    where: orgIds ? inArray(organizations.id, orgIds) : undefined,
-    orderBy: asc(organizations.name),
-    with: { members: { with: { user: true }, orderBy: asc(organizationMembers.createdAt) } },
-  });
-
-  return rows.map((org) => ({
-    id: org.id,
-    name: org.name,
-    slug: org.slug,
-    assignableRoles: assignableRoles(actor, org.id),
-    members: org.members.map((m) => ({
-      id: m.id,
-      userId: m.userId,
-      email: m.user.email,
-      fullName: m.user.fullName,
-      role: m.role,
-    })),
-  }));
-}
-
 export async function createOrganization(
   actor: CurrentUser,
-  input: CreateOrganizationInput,
+  input: OrganizationInput,
 ): Promise<void> {
   if (!can(actor, "organizations:manage")) throw new AdminError("Sin permiso");
-  const slug = slugify(input.name);
-  if (!slug) throw new AdminError("Nombre inválido");
   const exists = await db.query.organizations.findFirst({
-    where: eq(organizations.slug, slug),
+    where: eq(organizations.slug, input.slug),
   });
-  if (exists) throw new AdminError("Ya existe una organización con ese nombre");
-  await db
-    .insert(organizations)
-    .values({ id: `org_${randomUUID()}`, name: input.name, slug });
+  if (exists) {
+    throw new AdminError("Ya existe una organización con ese nombre/slug");
+  }
+  try {
+    await db
+      .insert(organizations)
+      .values({ id: `org_${randomUUID()}`, name: input.name, slug: input.slug });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new AdminError("Ya existe una organización con ese nombre/slug");
+    }
+    throw error;
+  }
 }
 
 /** Busca el usuario en Clerk por correo; si no existe lo crea con una contraseña temporal. */
@@ -98,14 +57,24 @@ async function findOrCreateClerkUser(input: AddMemberInput) {
   if (data[0]) return { user: data[0], temporaryPassword: null };
 
   const [firstName, ...rest] = input.fullName.split(" ");
-  const temporaryPassword = randomBytes(9).toString("base64url");
-  const user = await client.users.createUser({
-    emailAddress: [input.email],
-    firstName,
-    lastName: rest.join(" ") || undefined,
-    password: temporaryPassword,
-  });
-  return { user, temporaryPassword };
+  // Clerk exige contraseñas de 15+ caracteres: 18 bytes en base64url son 24.
+  const temporaryPassword = randomBytes(18).toString("base64url");
+  try {
+    const user = await client.users.createUser({
+      emailAddress: [input.email],
+      firstName,
+      lastName: rest.join(" ") || undefined,
+      password: temporaryPassword,
+    });
+    return { user, temporaryPassword };
+  } catch (error) {
+    // Un 422 de Clerk (política de contraseñas, campos requeridos…) no es un fallo del servidor: se muestra su motivo.
+    if (isClerkAPIResponseError(error)) {
+      const reason = error.errors[0]?.longMessage ?? error.errors[0]?.message ?? error.message;
+      throw new AdminError(`Clerk no pudo crear la cuenta: ${reason}`);
+    }
+    throw error;
+  }
 }
 
 /** Agrega (o reasigna) a una persona en una organización. Devuelve la contraseña temporal si se creó la cuenta. */
@@ -113,7 +82,12 @@ export async function addMember(
   actor: CurrentUser,
   input: AddMemberInput,
 ): Promise<{ temporaryPassword: string | null }> {
-  if (!assignableRoles(actor, input.organizationId).includes(input.role)) {
+  const roles = await loadRoleDefs();
+  if (
+    !assignableRoles(actor, input.organizationId, roles).some(
+      (r) => r.id === input.role,
+    )
+  ) {
     throw new AdminError("No puedes asignar ese rol en esta organización");
   }
   const org = await db.query.organizations.findFirst({
@@ -124,6 +98,15 @@ export async function addMember(
   const { user, temporaryPassword } = await findOrCreateClerkUser(input);
   const fields = fromClerkUser(user);
   if (!fields) throw new AdminError("La cuenta no tiene correo");
+
+  const existing = await db.query.organizationMembers.findFirst({
+    where: and(
+      eq(organizationMembers.organizationId, org.id),
+      eq(organizationMembers.userId, user.id),
+    ),
+  });
+  const denied = addMemberGuardError(actor, user.id, existing ?? null, roles);
+  if (denied) throw new AdminError(denied);
   await upsertUser(fields);
 
   await db
@@ -132,45 +115,47 @@ export async function addMember(
       id: `mem_${randomUUID()}`,
       organizationId: org.id,
       userId: user.id,
-      role: input.role,
+      roleId: input.role,
     })
     .onConflictDoUpdate({
       target: [organizationMembers.organizationId, organizationMembers.userId],
-      set: { role: input.role },
+      set: { roleId: input.role },
     });
   await syncRoleMetadata(user.id);
   return { temporaryPassword };
 }
 
-async function loadManageableMember(actor: CurrentUser, memberId: string) {
+async function loadManageableMember(
+  actor: CurrentUser,
+  memberId: string,
+  roles: RoleDef[],
+) {
   const member = await db.query.organizationMembers.findFirst({
     where: eq(organizationMembers.id, memberId),
   });
   if (!member) throw new AdminError("Miembro no encontrado");
-  if (member.userId === actor.id) {
-    throw new AdminError("No puedes modificar tu propio rol");
-  }
-  // Un admin solo gestiona organizadores; cambiar/quitar admins es del super admin.
-  if (
-    !assignableRoles(actor, member.organizationId).includes(member.role)
-  ) {
-    throw new AdminError("Sin permiso sobre este miembro");
-  }
+  const denied = memberGuardError(actor, member, roles);
+  if (denied) throw new AdminError(denied);
   return member;
 }
 
 export async function changeMemberRole(
   actor: CurrentUser,
   memberId: string,
-  role: OrgRole,
+  role: string,
 ): Promise<void> {
-  const member = await loadManageableMember(actor, memberId);
-  if (!assignableRoles(actor, member.organizationId).includes(role)) {
+  const roles = await loadRoleDefs();
+  const member = await loadManageableMember(actor, memberId, roles);
+  if (
+    !assignableRoles(actor, member.organizationId, roles).some(
+      (r) => r.id === role,
+    )
+  ) {
     throw new AdminError("No puedes asignar ese rol");
   }
   await db
     .update(organizationMembers)
-    .set({ role })
+    .set({ roleId: role })
     .where(eq(organizationMembers.id, memberId));
   await syncRoleMetadata(member.userId);
 }
@@ -179,7 +164,11 @@ export async function removeMember(
   actor: CurrentUser,
   memberId: string,
 ): Promise<void> {
-  const member = await loadManageableMember(actor, memberId);
+  const member = await loadManageableMember(
+    actor,
+    memberId,
+    await loadRoleDefs(),
+  );
   await db
     .delete(organizationMembers)
     .where(

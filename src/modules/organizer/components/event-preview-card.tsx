@@ -1,40 +1,47 @@
 import { ImageIcon } from "lucide-react";
 
-import { formatDateBadge, formatPrice } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { EVENT_CATEGORY_LABELS, type EventCategory } from "@/modules/events/types/event.types";
 
 interface EventPreviewCardProps {
   title: string;
-  category: EventCategory | "";
-  startsAt: string | null;
-  venue: string;
-  city: string;
-  imageUrl: string | null;
+  categoryLabel: string | null;
+  date: string;
+  time: string;
+  venueName: string | null;
+  city: string | null;
+  coverImageUrl: string | null;
   fromPrice: number | null;
-  className?: string;
+}
+
+const MONTHS = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+
+function getDateBadge(date: string): { month: string; day: string } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const month = match ? MONTHS[Number(match[2]) - 1] : undefined;
+  return match && month ? { month, day: match[3] } : { month: "MES", day: "--" };
 }
 
 /** Tarjeta de vista previa del evento en edición, con placeholders para lo que falta completar. */
 export function EventPreviewCard({
   title,
-  category,
-  startsAt,
-  venue,
+  categoryLabel,
+  date,
+  time,
+  venueName,
   city,
-  imageUrl,
+  coverImageUrl,
   fromPrice,
-  className,
 }: EventPreviewCardProps) {
-  const badge = startsAt ? formatDateBadge(startsAt) : { month: "MES", day: "--" };
-  const place = [venue.trim(), city.trim()].filter(Boolean).join(" · ");
+  const badge = getDateBadge(date);
+  const place = [venueName?.trim(), city?.trim()].filter(Boolean).join(" · ");
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border bg-card shadow-sm", className)}>
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
       <div className="relative flex aspect-video items-center justify-center bg-accent text-primary">
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- puede ser un blob local
-          <img src={imageUrl} alt="" className="absolute inset-0 size-full object-cover" />
+        {coverImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- URL arbitraria del organizador
+          <img src={coverImageUrl} alt="" className="absolute inset-0 size-full object-cover" />
         ) : (
           <ImageIcon className="size-8" aria-hidden="true" />
         )}
@@ -44,13 +51,12 @@ export function EventPreviewCard({
         </span>
       </div>
       <div className="flex flex-col gap-1 p-4">
-        <span className="text-xs font-semibold text-primary">
-          {category ? EVENT_CATEGORY_LABELS[category].singular : "Categoría"}
-        </span>
+        <span className="text-xs font-semibold text-primary">{categoryLabel || "Categoría"}</span>
         <span className={cn("line-clamp-2 font-semibold", !title.trim() && "text-muted-foreground")}>
           {title.trim() || "Nombre del evento"}
         </span>
         <span className="text-[0.8125rem] text-muted-foreground">{place || "Lugar · Ciudad"}</span>
+        {time && <span className="text-[0.8125rem] text-muted-foreground">{time}</span>}
         <span className="mt-2 flex items-center justify-between border-t pt-3 text-sm">
           <span>
             <span className="text-muted-foreground">Desde </span>

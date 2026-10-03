@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
+import { requirePermission } from "@/modules/auth/services/current-user.service";
 import { EventEditor } from "@/modules/organizer/components/event-editor";
+import { getEventForEdit } from "@/modules/organizer/services/event-edit.service";
+import { getEventFormOptions } from "@/modules/organizer/services/event-options.service";
 
 export const metadata: Metadata = {
-  title: "Editar borrador · Ticketera",
+  title: "Editar evento · Ticketera",
 };
 
 export default async function EditEventPage({ params }: PageProps<"/organizer/events/[id]/edit">) {
   const { id } = await params;
-  return <EventEditor eventId={id} />;
+  const user = await requirePermission("events:manage");
+  const [options, initial] = await Promise.all([getEventFormOptions(user), getEventForEdit(user, id)]);
+  if (!initial) notFound();
+  return <EventEditor options={options} initial={initial} />;
 }

@@ -19,7 +19,7 @@ Decisión tomada con el usuario: el MER real **sí modela zonas y asientos** (no
 ## Decisiones de arquitectura
 
 - **Autenticación**: **Clerk** con dos métodos: correo + contraseña y **Google (OAuth, social connection de Clerk)**. Clerk gestiona todo el flujo OAuth (redirección, consentimiento, tokens, sesión); la app **no** guarda contraseñas ni tokens de Google, ni implementa OAuth propio. Los scopes de Google se limitan a `openid email profile`. Si un correo ya existe con contraseña y entra con Google (o al revés), Clerk los enlaza en **una sola cuenta** siempre que el correo esté verificado — por eso `users.email` sigue siendo único. Reemplaza la sesión simulada de `useSessionStore` y el selector mock de `docs/specs/account/google-sign-in.md`.
-- **Roles**: `users.is_super_admin` es un flag global, fuera de cualquier organización. `admin`/`organizer` son valores de `organization_members.role`, un rol *dentro* de una organización. `Cliente` es cualquier usuario sin membresías que compra entradas.
+- **Roles**: `users.is_super_admin` es un flag global, fuera de cualquier organización. Los roles son filas de la tabla `roles` (catálogo dinámico con permisos); `organization_members.role_id` indica el rol de un usuario *dentro* de una organización. `admin` y `organizer` son roles de sistema. `Cliente` es cualquier usuario sin membresías que compra entradas.
 - **Organizaciones**: ~~Clerk Organizations~~ **(decisión revisada)**: las organizaciones y sus membresías (`organizations`, `organization_members`) **viven solo en Postgres** y las administra la propia app desde `/admin`; Clerk solo es la fuente de verdad de la **identidad** (`users`, sincronizada por webhook). Motivo: Clerk Organizations exige activarse en el dashboard y no aporta nada que la app no resuelva con sus propias tablas. Los ids son `org_<uuid>` / `mem_<uuid>` generados por la app.
 - **Pagos**: **Stripe Connect** (marketplace) — cada organización tiene su cuenta conectada (`organizations.stripe_account_id`) y recibe el pago menos `orders.application_fee_amount`.
 - **Entradas**: modelo de **zonas + asientos**, no un precio único por evento. Un `venue` tiene `venue_zones` (generales o numeradas); las zonas numeradas tienen `venue_seats` físicos reutilizables entre eventos del mismo recinto. El precio y disponibilidad se fijan **por evento** en `ticket_types` (un venue se reusa, pero el precio de un concierto no tiene por qué ser el de otro en el mismo lugar).
@@ -97,10 +97,23 @@ erDiagram
 | `id` | `text` PK | = Clerk organization membership id |
 | `organization_id` | `text` FK → `organizations.id`, not null | |
 | `user_id` | `text` FK → `users.id`, not null | |
-| `role` | `text` enum `org_role` not null | `admin \| organizer` |
+| `role_id` | `text` FK → `roles.id` (on delete restrict), not null | Índice `organization_members_role_idx` |
 | `created_at` | `timestamptz` not null | |
 
 Restricción: único por `(organization_id, user_id)`.
+
+#### `roles`
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | `text` PK | Roles de sistema: `admin`, `organizer` |
+| `name` | `text` not null, único | |
+| `description` | `text` | |
+| `permissions` | `text[]` not null default `{}` | Permisos asignables (ver "Roles y permisos") |
+| `is_system` | `boolean` not null default `false` | `true` para `admin` y `organizer` |
+| `created_at` / `updated_at` | `timestamptz` not null | |
+
+La migración `0001_dynamic_roles` crea la tabla y siembra los roles de sistema: `admin` ("Administrador": `members:manage`, `events:manage`, `tickets:redeem`) y `organizer` ("Organizador": `events:manage`, `tickets:redeem`). Migra `organization_members.role` a `role_id` y elimina el enum `org_role`. La migración se aplica manualmente con `npm run db:migrate`.
 
 ### Catálogo
 
@@ -318,7 +331,6 @@ Tabla de log/auditoría; no dispara nada por sí sola (el envío real lo hace un
 | Enum | Valores |
 |---|---|
 | `stripe_connect_status` | `not_started`, `pending`, `active`, `restricted` |
-| `org_role` | `admin`, `organizer` |
 | `zone_seating` | `general`, `numbered` |
 | `event_status` | `draft`, `published`, `cancelled` |
 | `seat_status` | `available`, `held`, `sold` |
@@ -380,15 +392,24 @@ sequenceDiagram
 ## Roles y permisos (implementado)
 
 - **Super admin**: `users.is_super_admin`. Se asigna automáticamente al usuario cuyo correo (verificado en Clerk) coincide con `SUPER_ADMIN_EMAIL` (por defecto `nelson.nc421@gmail.com`), tanto en el webhook como en el sync perezoso al iniciar sesión. Nunca se quita por sync.
-- **Permisos** (`src/modules/auth/services/permissions.ts`): `organizations:manage` (solo super admin), `members:manage` (super admin; admin de la org), `events:manage` y `tickets:redeem` (admin y organizador de la org). `assignableRoles`: el super admin asigna `admin` y `organizer`; un admin solo `organizer` y solo en su organización.
+- **Permisos** (`src/modules/auth/services/permissions.ts`):
+  - Asignables a un rol (`ASSIGNABLE_PERMISSIONS`): `members:manage`, `events:manage`, `tickets:redeem`.
+  - Solo super admin (no asignables): `organizations:manage` y `roles:manage`.
+- **Regla de asignación** (`assignableRoles`): el super admin asigna cualquier rol. Quien tiene `members:manage` en una organización asigna solo roles **sin** `members:manage` y con permisos ⊆ a los propios en esa organización. Nadie modifica su propia membresía.
+- **Rol global derivado** (`publicMetadata.role`, solo UI): `super_admin` si es super admin; `admin` si tiene `members:manage`; `organizer` si tiene `events:manage`; si no, `customer`.
+- **Roles de sistema** (`admin`, `organizer`): no se eliminan y sus permisos no son editables. La eliminación de un rol con miembros asignados, o de una organización con datos asociados, se bloquea.
 - **Fuente de verdad de autorización**: Postgres (`getCurrentUser()` / `requirePermission()` en `src/modules/auth/services/current-user.service.ts`). El rol más alto se refleja además en `publicMetadata.role` de Clerk **solo para la UI** (links del header).
 - **Sync de usuarios**: webhook `POST /api/webhooks/clerk` (`user.created/updated/deleted`, firma con `CLERK_WEBHOOK_SIGNING_SECRET`) + upsert perezoso en `getCurrentUser()` si el usuario aún no está en la DB. El webhook requiere configurar el endpoint en el dashboard de Clerk; sin él todo funciona igual por el sync perezoso.
-- **Panel `/admin`** (`src/modules/admin/`): el super admin crea organizaciones y agrega administradores/organizadores por correo (si la cuenta no existe en Clerk se crea con una contraseña temporal que se muestra una sola vez), cambia roles y quita miembros. Un admin gestiona solo organizadores de su organización. Nadie modifica su propia membresía.
+- **Panel de administración** (`src/modules/admin/`):
+  - `/admin` (organizaciones): requiere `members:manage` para entrar; crear, editar y eliminar organizaciones requiere `organizations:manage` (solo super admin).
+  - `/admin/users`: requiere `members:manage`; agrega miembros por correo (si la cuenta no existe en Clerk se crea con una contraseña temporal que se muestra una sola vez), cambia roles y quita miembros, dentro de la regla de asignación.
+  - `/admin/roles`: requiere `roles:manage` (solo super admin); CRUD del catálogo de roles. El menú "Roles" solo se muestra a super admin.
+  - La migración `0001_dynamic_roles` se aplica manualmente con `npm run db:migrate`.
 - **Rutas protegidas**: `proxy.ts` exige sesión en `/admin` y `/organizer`; el permiso se valida en servidor (`/admin` → `members:manage`, `/organizer` → `events:manage`).
 
 ## Seed de eventos
 
-`npm run db:seed -- --organizer-email=<correo>` crea categorías, recintos (zonas + asientos), eventos, `ticket_types` y `event_seats` a partir de la data mock (`events.service.ts`, `venues.service.ts`), asociados a la organización del usuario indicado (debe tener una membresía). Es idempotente y publica cada evento al final. `npm run db:seed -- --dry-run` imprime el plan sin tocar la base. Código en `src/db/seed/`. **Aún no se ha ejecutado**: queda pendiente asignar el rol de organizador al usuario destino.
+`npm run db:seed` (sin argumentos usa los correos por defecto `nelson.np20@gmail.com` y `sistemas3610@gmail.com`; `--organizer-emails=a,b` los sobrescribe) asocia a esos usuarios como organizadores (rol `organizer`) de organizaciones elegidas al azar (quien ya tiene una membresía se respeta; si no hay organizaciones crea "Organización demo") y crea categorías, recintos (zonas + asientos), eventos, `ticket_types` y `event_seats` a partir de la data mock (`events.service.ts`, `venues.service.ts`), repartiendo los eventos al azar entre esas organizaciones (los recintos son por organización). Los usuarios deben haber iniciado sesión al menos una vez. Es idempotente y publica cada evento al final; luego intenta sincronizar `publicMetadata.role` en Clerk (advertencia no fatal si falla). `npm run db:seed -- --dry-run` imprime el plan sin tocar la base. Código en `src/db/seed/`.
 
 ## Sincronización con Clerk
 

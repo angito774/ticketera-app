@@ -6,7 +6,6 @@ export const stripeConnectStatus = pgEnum("stripe_connect_status", [
   "active",
   "restricted",
 ]);
-export const orgRole = pgEnum("org_role", ["admin", "organizer"]);
 export const zoneSeating = pgEnum("zone_seating", ["general", "numbered"]);
 export const eventStatus = pgEnum("event_status", [
   "draft",

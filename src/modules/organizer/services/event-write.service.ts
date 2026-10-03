@@ -13,7 +13,7 @@ import {
   venueZones,
   venues,
 } from "@/db/schema";
-import { isForeignKeyViolation, isUniqueViolation } from "@/lib/pg-errors";
+import { isForeignKeyViolation, isUniqueViolation, isDivisionByZero } from "@/lib/pg-errors";
 import { slugify } from "@/lib/slugify";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 import { can } from "@/modules/auth/services/permissions";
@@ -26,7 +26,6 @@ import {
   assertPublishedText,
   buildTicketTypeRows,
   draftGuardSql,
-  isDraftGuardFailure,
   nextSlug,
   requireEventColumns,
   type TicketTypeRow,
@@ -255,7 +254,7 @@ export async function updateEvent(
     try {
       await runBatch(statements);
     } catch (error) {
-      if (isDraftGuardFailure(error)) throw new AdminError(CHANGED_PAGE);
+      if (isDivisionByZero(error)) throw new AdminError(CHANGED_PAGE);
       if (isUniqueViolation(error)) throw new AdminError(CHANGED_RETRY);
       throw error;
     }

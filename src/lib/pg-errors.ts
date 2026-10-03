@@ -13,3 +13,11 @@ export function isUniqueViolation(error: unknown): boolean {
 export function isForeignKeyViolation(error: unknown): boolean {
   return hasPgCode(error, "23503");
 }
+
+export function isDivisionByZero(error: unknown): boolean {
+  return hasPgCode(error, "22012");
+}
+
+export function isCheckViolation(error: unknown): boolean {
+  return hasPgCode(error, "23514");
+}

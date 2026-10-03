@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Show, SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
@@ -8,10 +9,37 @@ import { LayoutDashboard, ShieldCheck, Ticket } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Registra al usuario en la BD una sola vez por sesión del navegador (AC-9a). */
+function useSyncUserOnSignIn() {
+  const { isLoaded, isSignedIn, user } = useUser();
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId) return;
+    const key = `ticketera-synced:${userId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+    } catch {
+      // sessionStorage no disponible: se intenta la sincronización igualmente
+    }
+    fetch("/api/auth/sync", { method: "POST" })
+      .then((response) => {
+        if (!response.ok) return;
+        try {
+          sessionStorage.setItem(key, "1");
+        } catch {
+          // sin marca: se reintentará en la siguiente carga
+        }
+      })
+      .catch(() => {});
+  }, [isLoaded, isSignedIn, userId]);
+}
+
 /** Acciones de cuenta del header: acceso sin sesión; "Mis entradas" y menú de usuario con sesión (Clerk). */
 export function HeaderAccount() {
   const pathname = usePathname();
   const isMyTickets = pathname === "/my-tickets";
+  useSyncUserOnSignIn();
   // `role` lo mantiene el servidor en publicMetadata (super_admin | admin | organizer); la autorización real se valida en servidor.
   const { user } = useUser();
   const role = user?.publicMetadata?.role;

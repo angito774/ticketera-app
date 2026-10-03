@@ -12,7 +12,6 @@ import {
   assertPublishable,
   buildTicketTypeRows,
   draftGuardSql,
-  isDraftGuardFailure,
   nextSlug,
   requireEventColumns,
   type ZoneInfo,
@@ -134,13 +133,6 @@ describe("draft guard", () => {
     const { sql: text } = new PgDialect().sqlToQuery(draftGuardSql("evt-1"));
     expect(text).not.toMatch(/1\s*\/\s*0/);
     expect(text).toMatch(/1\s*\/\s*\(select count\(\*\)/i);
-  });
-
-  it("reconoce la división por cero, también como causa anidada", () => {
-    expect(isDraftGuardFailure({ code: "22012" })).toBe(true);
-    expect(isDraftGuardFailure(new Error("x", { cause: { code: "22012" } }))).toBe(true);
-    expect(isDraftGuardFailure({ code: "23505" })).toBe(false);
-    expect(isDraftGuardFailure(null)).toBe(false);
   });
 });
 

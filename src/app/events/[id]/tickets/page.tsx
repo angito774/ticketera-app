@@ -10,8 +10,11 @@ import {
   getAllEvents,
   getEventById,
 } from "@/modules/events/services/events.service";
+import { getEventAvailability } from "@/modules/checkout/services/availability.service";
 import { TicketSelection } from "@/modules/tickets/components/ticket-selection";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
+
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return getAllEvents().map((event) => ({ id: event.id }));
@@ -34,6 +37,7 @@ export default async function TicketsPage({
   const event = getEventById(id);
   if (!event) notFound();
 
+  const availability = await getEventAvailability(event.id);
   const eventHref = `/events/${event.id}`;
 
   return (
@@ -77,6 +81,7 @@ export default async function TicketsPage({
         <TicketSelection
           eventId={event.id}
           layout={getVenueLayout(event.layoutId, event.price)}
+          availability={availability}
           checkoutHref={`${eventHref}/checkout`}
         />
       </main>

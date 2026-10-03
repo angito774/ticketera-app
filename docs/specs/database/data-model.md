@@ -360,8 +360,10 @@ Mapeo de los tipos mock existentes a las tablas reales que los reemplazarán cua
 | `VenueLayout` / `VenueZone` (`src/modules/tickets/types/venue.types.ts`) | `venues` + `venue_zones` (plantilla física, hoy hardcodeada como "stadium"/"theater") |
 | `Seat` / `SeatRow` | `venue_seats` (físico) + `event_seats` (estado de venta por evento) |
 | `PurchaseState` / `buildPurchaseSummary` (`purchase.store.ts`) | `ticket_holds` (selección en curso) → `order_items` al confirmar |
-| `Order` / `OrderTicket` (`src/modules/checkout/types/order.types.ts`) | `orders` + `order_items` + `tickets` |
+| `Order` / `OrderTicket` (mock eliminado; ver nota) | `orders` + `order_items` + `tickets` |
 | Cuenta regresiva de 10 min (`useCountdown`) | `ticket_holds.expires_at` |
+
+Nota (`docs/specs/checkout/real-purchase.md`): la compra ya es real con pago simulado. Las órdenes se guardan en `orders`/`order_items`/`tickets` (la orden queda `paid`), y el login/cuenta demo y los stores/servicios mock de órdenes fueron eliminados. "Cliente" es un estado derivado (usuario sin membresías), no se guarda.
 
 Cuando exista una spec de implementación del backend, el `layoutId` fijo (`"stadium" | "theater"`) deja de generarse en código y pasa a ser datos reales en `venue_zones`/`venue_seats`, cargados una vez por venue.
 
@@ -384,7 +386,7 @@ sequenceDiagram
     App->>DB: upsert users (id, email, full_name, avatar_url, auth_providers)
 ```
 
-- **Cliente** (`src/modules/account/`): el botón "Continuar con Google" del login/registro llama a la estrategia `oauth_google` de Clerk; el selector de cuentas mock se elimina.
+- **Cliente**: `/sign-in` y `/sign-up` usan los componentes de Clerk (autenticación real con email/contraseña y Google); el login mock y su selector de cuentas se eliminaron.
 - **Servidor**: el middleware de Clerk protege las rutas privadas (`/my-tickets`, `/checkout`, panel de organizador). Los server actions/route handlers leen el `userId` de la sesión de Clerk, nunca de un parámetro del cliente.
 - **Primera vez con Google** equivale a registro: el webhook crea la fila en `users`. Un `users.id` es siempre el id de Clerk, sin importar el método de acceso.
 - **Entorno**: requiere un OAuth client en Google Cloud (consent screen + URI de redirección que entrega Clerk), configurado en el dashboard de Clerk, no en variables propias. Solo se agregan `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` y `CLERK_SECRET_KEY`.

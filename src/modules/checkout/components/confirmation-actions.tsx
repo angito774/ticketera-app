@@ -6,11 +6,11 @@ import { ArrowRight, Download } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AddToCalendarButton } from "@/modules/checkout/components/add-to-calendar-button";
-import type { Order } from "@/modules/checkout/types/order.types";
+import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
 
 interface ConfirmationActionsProps {
-  order: Order;
+  order: Pick<OrderView, "number" | "tickets">;
   event: Pick<EventDetail, "title" | "date" | "venue" | "address" | "city">;
   className?: string;
 }

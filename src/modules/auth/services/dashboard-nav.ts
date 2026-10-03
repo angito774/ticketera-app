@@ -4,7 +4,7 @@ import {
   type AuthSubject,
 } from "@/modules/auth/services/permissions";
 
-export type NavIcon = "dashboard" | "plus" | "building" | "users" | "shield" | "external";
+export type NavIcon = "dashboard" | "plus" | "building" | "users" | "contact" | "shield" | "external";
 
 export interface NavItem {
   href: string;
@@ -49,6 +49,12 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
         label: "Usuarios",
         icon: "users",
         matchPrefix: "/admin/users",
+      },
+      {
+        href: "/admin/customers",
+        label: "Clientes",
+        icon: "contact",
+        matchPrefix: "/admin/customers",
       },
     ];
     if (can(subject, "roles:manage")) {

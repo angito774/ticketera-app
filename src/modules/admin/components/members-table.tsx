@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { ResultBanner } from "@/components/result-banner";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRelativeTime } from "@/lib/format-relative-time";
-import { cn } from "@/lib/utils";
 import { DeleteMemberDialog } from "@/modules/admin/components/delete-member-dialog";
 import { MemberFormDialog } from "@/modules/admin/components/member-form-dialog";
+import { displayName, RoleBadge, StatusLabel, UserCell } from "@/modules/admin/components/user-identity";
 import type { ManageableOrganization, MemberListRow } from "@/modules/admin/services/member-list.service";
 
 interface MembersTableProps {
@@ -26,55 +25,6 @@ type DialogState =
   | null;
 
 const NOT_EDITABLE_TITLE = "No tienes permiso sobre este usuario";
-
-function displayName(row: MemberListRow) {
-  return row.fullName ?? row.email;
-}
-
-function initials(row: MemberListRow) {
-  const parts = displayName(row).trim().split(/\s+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] ?? "?").slice(0, 2);
-  return letters.toUpperCase();
-}
-
-function UserCell({ row }: { row: MemberListRow }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span
-        aria-hidden="true"
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground"
-      >
-        {initials(row)}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{displayName(row)}</p>
-        {row.fullName && <p className="truncate text-xs text-muted-foreground">{row.email}</p>}
-      </div>
-    </div>
-  );
-}
-
-function RoleBadge({ name }: { name: string }) {
-  return (
-    <Badge variant="secondary" className="h-6 bg-muted px-2.5 text-muted-foreground">
-      {name}
-    </Badge>
-  );
-}
-
-function StatusLabel({ verified }: { verified: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 text-sm font-medium",
-        verified ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400",
-      )}
-    >
-      <span aria-hidden="true" className="size-2 rounded-full bg-current" />
-      {verified ? "Verificado" : "Pendiente"}
-    </span>
-  );
-}
 
 interface RowActionsProps {
   row: MemberListRow;
@@ -160,10 +110,10 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
                 {rows.map((row) => (
                   <TableRow key={row.memberId}>
                     <TableCell className="max-w-64">
-                      <UserCell row={row} />
+                      <UserCell fullName={row.fullName} email={row.email} />
                     </TableCell>
                     <TableCell>
-                      <RoleBadge name={row.roleName} />
+                      <RoleBadge label={row.roleName} />
                     </TableCell>
                     <TableCell>{row.organizationName}</TableCell>
                     <TableCell>
@@ -187,7 +137,7 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
             {rows.map((row) => (
               <li key={row.memberId} className="flex flex-col gap-3 rounded-xl border p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <UserCell row={row} />
+                  <UserCell fullName={row.fullName} email={row.email} />
                   <RowActions
                     row={row}
                     onEdit={() => setDialog({ type: "edit", row })}
@@ -195,7 +145,7 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <RoleBadge name={row.roleName} />
+                  <RoleBadge label={row.roleName} />
                   <StatusLabel verified={row.emailVerified} />
                 </div>
                 <dl className="grid grid-cols-2 gap-2 text-xs">

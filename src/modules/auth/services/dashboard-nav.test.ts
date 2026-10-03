@@ -43,12 +43,18 @@ describe("getNavSections", () => {
       "Crear evento",
       "Organizaciones",
       "Usuarios",
+      "Clientes",
     ]);
     expect(adminSection).toMatchObject({
       title: "Administración",
       items: [
         { href: "/admin", icon: "building" },
         { href: "/admin/users", icon: "users", matchPrefix: "/admin/users" },
+        {
+          href: "/admin/customers",
+          icon: "contact",
+          matchPrefix: "/admin/customers",
+        },
       ],
     });
     expect(adminSection?.items[0].matchPrefix).toBeUndefined();
@@ -60,15 +66,17 @@ describe("getNavSections", () => {
       "Crear evento",
       "Organizaciones",
       "Usuarios",
+      "Clientes",
       "Roles",
     ]);
-    expect(getNavSections(superAdmin).at(-1)?.items[2]).toEqual({
+    expect(getNavSections(superAdmin).at(-1)?.items[3]).toEqual({
       href: "/admin/roles",
       label: "Roles",
       icon: "shield",
       matchPrefix: "/admin/roles",
     });
     expect(labels(organizer)).not.toContain("Roles");
+    expect(labels(organizer)).not.toContain("Clientes");
   });
 
   it("matches the overview by exact path and event creation by prefix", () => {

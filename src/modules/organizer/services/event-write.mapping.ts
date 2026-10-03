@@ -8,20 +8,12 @@ import {
 
 export class EventRuleError extends Error {}
 
-const DIVISION_BY_ZERO = "22012";
-
 /**
  * Primera sentencia del batch de edición: aborta todo (división por cero, 22012) si el evento ya no es borrador.
  * El divisor depende de una fila real: una constante `1/0` dentro de un CASE se evalúa al PLANIFICAR y fallaría siempre.
  */
 export function draftGuardSql(eventId: string): SQL {
   return sql`select 1 / (select count(*)::int from events where id = ${eventId} and status = 'draft')`;
-}
-
-export function isDraftGuardFailure(error: unknown, depth = 0): boolean {
-  if (depth > 5 || typeof error !== "object" || error === null) return false;
-  const e = error as { code?: unknown; cause?: unknown };
-  return e.code === DIVISION_BY_ZERO || isDraftGuardFailure(e.cause, depth + 1);
 }
 
 export interface ZoneInfo {

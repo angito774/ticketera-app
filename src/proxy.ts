@@ -1,7 +1,13 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 // Solo exige sesión; el permiso concreto (rol) se valida en servidor con `requirePermission`.
-const isPrivateRoute = createRouteMatcher(["/admin(.*)", "/organizer(.*)"]);
+const isPrivateRoute = createRouteMatcher([
+  "/admin(.*)",
+  "/organizer(.*)",
+  "/events/:id/checkout(.*)",
+  "/events/:id/confirmation(.*)",
+  "/my-tickets(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPrivateRoute(req)) await auth.protect();

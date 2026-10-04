@@ -61,7 +61,7 @@ function BentoTile({
     <div className={cn("relative overflow-hidden rounded-xl", className)}>
       <Image
         src={tile.imageUrl}
-        alt={tile.title}
+        alt=""
         fill
         sizes="(min-width: 640px) 25vw, 50vw"
         className="object-cover"

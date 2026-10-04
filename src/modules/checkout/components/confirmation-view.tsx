@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
 import { CircleCheck, Mail, QrCode, Ticket } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import { ConfirmationActions } from "@/modules/checkout/components/confirmation-actions";
 import { OrderTicketCard } from "@/modules/checkout/components/order-ticket-card";
-import { selectLastOrder, useOrderStore } from "@/modules/checkout/store/order.store";
+import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
-import { usePurchaseStore } from "@/modules/tickets/store/purchase.store";
 
 interface ConfirmationViewProps {
+  order: OrderView;
   event: EventDetail;
   className?: string;
 }
@@ -24,41 +20,8 @@ const NEXT_STEPS = [
   { icon: Ticket, title: "Todo en Mis entradas", text: "Entra con tu cuenta para ver y descargar tus entradas cuando quieras." },
 ];
 
-/** Confirmación de compra: lee el último pedido del store (sessionStorage). */
-export function ConfirmationView({ event, className }: ConfirmationViewProps) {
-  const hydrated = useHydrated();
-  const storedOrder = useOrderStore(selectLastOrder);
-  const order = hydrated && storedOrder?.eventId === event.id ? storedOrder : null;
-  const clearSelection = usePurchaseStore((state) => state.clear);
-  const selectionEventId = usePurchaseStore((state) => state.eventId);
-
-  // La compra de este evento ya se confirmó: se descarta la selección de entradas.
-  useEffect(() => {
-    if (order && selectionEventId === event.id) clearSelection();
-  }, [order, selectionEventId, event.id, clearSelection]);
-
-  if (!hydrated) {
-    return <div aria-busy="true" className="min-h-96" />;
-  }
-
-  if (!order) {
-    return (
-      <div className={cn("mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center", className)}>
-        <Ticket className="size-10 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-2xl font-bold tracking-tight">No encontramos tu pedido</h1>
-        <p className="text-muted-foreground">
-          No hay una compra reciente para este evento en este navegador.
-        </p>
-        <Link
-          href={`/events/${event.id}`}
-          className={cn(buttonVariants({ variant: "default" }), "h-11 rounded-xl px-5 text-[0.9375rem]")}
-        >
-          Ir al evento
-        </Link>
-      </div>
-    );
-  }
-
+/** Confirmación de compra con la orden real (ya validada como propia en el servidor). */
+export function ConfirmationView({ order, event, className }: ConfirmationViewProps) {
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-8 lg:gap-10", className)}>
       <div className="flex flex-col items-center gap-3 text-center">

@@ -21,7 +21,7 @@ export function SelectedSeatChips({ zone, selectedSeatIds, onRemove, className }
         <li key={seat.id}>
           <button
             type="button"
-            aria-label={`Quitar Fila ${seat.row}, asiento ${seat.number}`}
+            aria-label={`Fila ${seat.row} · ${seat.number}, quitar asiento`}
             onClick={() => onRemove(seat)}
             className="flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-accent pr-2.5 pl-3 text-[0.8125rem] font-semibold text-accent-foreground transition-colors outline-none hover:bg-primary/15 focus-visible:ring-3 focus-visible:ring-ring"
           >

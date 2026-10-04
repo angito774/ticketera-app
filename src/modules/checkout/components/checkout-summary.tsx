@@ -104,7 +104,7 @@ export function CheckoutSummaryCollapsible({ event, summary, ticketsHref, classN
       <button
         type="button"
         aria-expanded={isOpen}
-        aria-controls="checkout-summary-details"
+        aria-controls={isOpen ? "checkout-summary-details" : undefined}
         onClick={() => setIsOpen((open) => !open)}
         className="flex w-full cursor-pointer items-center gap-3 rounded-3xl p-4 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring"
       >

@@ -1,125 +1,160 @@
 import { z } from "zod";
 
-import type { EventCategory } from "@/modules/events/types/event.types";
-import type { OrganizerEvent, OrganizerEventStatus } from "@/modules/organizer/types/organizer.types";
+import { ALLOWED_IMAGE_HOSTS, isAllowedImageUrl } from "@/lib/image-hosts";
 
 /** Los eventos se guardan en hora de Lima, igual que el catálogo. */
 const LIMA_OFFSET = "-05:00";
+const MAX_TIERS = 50;
+
+export interface ZoneOption {
+  id: string;
+  name: string;
+  seating: "general" | "numbered";
+  seats: number;
+}
 
 export interface TierFormValues {
-  name: string;
+  zoneId: string;
+  enabled: boolean;
+  /** Soles, ej. "120.50". */
   price: string;
+  /** Solo se pide en zonas generales. */
   quantity: string;
 }
 
 export interface EventFormValues {
   title: string;
-  category: EventCategory | "";
+  categoryId: string;
   description: string;
   /** "2026-12-20" */
   date: string;
   /** "20:00" */
   time: string;
-  venue: string;
-  city: string;
-  /** Vista previa local (`blob:`) o URL de un evento mock; los `blob:` no se persisten. */
-  imageUrl: string | null;
+  venueId: string;
+  coverImageUrl: string;
+  organizationId: string;
   tiers: TierFormValues[];
 }
 
-export type EventFormField = "title" | "category" | "description" | "date" | "time" | "venue" | "city" | "tiers";
-export type TierField = keyof TierFormValues;
+export type EventFormMode = "draft" | "publish";
+export type EventFormField =
+  | "title"
+  | "categoryId"
+  | "description"
+  | "date"
+  | "time"
+  | "venueId"
+  | "organizationId"
+  | "coverImageUrl"
+  | "tiers";
+export type TierField = "price" | "quantity";
 
 export type EventFormErrors = Partial<Record<EventFormField, string>> & {
+  /** Alineado por índice con `values.tiers`. */
   tierErrors?: Partial<Record<TierField, string>>[];
 };
 
-export type EventFormMode = "draft" | "publish";
-
-export const EMPTY_TIER: TierFormValues = { name: "", price: "", quantity: "" };
-
 export const EMPTY_EVENT_FORM: EventFormValues = {
   title: "",
-  category: "",
+  categoryId: "",
   description: "",
   date: "",
   time: "",
-  venue: "",
-  city: "",
-  imageUrl: null,
-  tiers: [EMPTY_TIER, EMPTY_TIER],
+  venueId: "",
+  coverImageUrl: "",
+  organizationId: "",
+  tiers: [],
 };
 
-const REQUIRED = "Completa este campo.";
-
-const titleSchema = z.string().trim().min(3, "Ingresa al menos 3 caracteres.");
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elige una fecha.");
-const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Elige una hora.");
-const priceSchema = z.coerce.number<string>("Ingresa un precio.").positive("El precio debe ser mayor a 0.");
-const quantitySchema = z.coerce
-  .number<string>("Ingresa una cantidad.")
-  .int("Usa un número entero.")
-  .positive("La cantidad debe ser mayor a 0.");
-
-const firstError = (schema: z.ZodType, value: unknown): string | undefined => {
-  const result = schema.safeParse(value);
-  return result.success ? undefined : result.error.issues[0]?.message;
-};
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+export const MIN_TITLE = 3;
+export const MIN_DESCRIPTION = 20;
+const MAX_INT = 2_147_483_647;
+const PRICE_RE = /^\d+(\.\d{1,2})?$/;
+const COVER_ERROR = `Usa una imagen https de un dominio permitido (${ALLOWED_IMAGE_HOSTS.join(", ")}).`;
 
 /** "2026-12-20" + "20:00" → ISO con offset de Lima; null si falta o es inválida la fecha. */
 export function toStartsAt(date: string, time: string): string | null {
-  if (!dateSchema.safeParse(date).success) return null;
-  const validTime = timeSchema.safeParse(time).success ? time : "00:00";
-  const iso = `${date}T${validTime}:00${LIMA_OFFSET}`;
+  const d = date.trim();
+  const t = time.trim();
+  if (!DATE_RE.test(d)) return null;
+  const utc = new Date(`${d}T00:00:00Z`);
+  if (Number.isNaN(utc.getTime()) || utc.toISOString().slice(0, 10) !== d) return null;
+  const iso = `${d}T${TIME_RE.test(t) ? t : "00:00"}:00${LIMA_OFFSET}`;
   return Number.isNaN(new Date(iso).getTime()) ? null : iso;
 }
 
-const isBlankTier = (tier: TierFormValues) => !tier.name.trim() && !tier.price.trim() && !tier.quantity.trim();
+const parsePriceCents = (price: string): number | null => {
+  const text = price.trim();
+  return PRICE_RE.test(text) ? Math.round(Number(text) * 100) : null;
+};
 
-/**
- * Errores del formulario. Un borrador solo exige nombre; publicar exige todo el evento
- * con fecha futura y cada tipo de entrada completo. `now` es inyectable para tests.
- */
+const parseQuantity = (quantity: string): number | null => {
+  const text = quantity.trim();
+  return /^\d+$/.test(text) ? Number.parseInt(text, 10) : null;
+};
+
+const isGeneral = (zones: ZoneOption[], zoneId: string) =>
+  zones.find((zone) => zone.id === zoneId)?.seating === "general";
+
 export function getEventFormErrors(
   values: EventFormValues,
   mode: EventFormMode,
-  now: Date = new Date()
+  zones: ZoneOption[]
 ): EventFormErrors {
   const errors: EventFormErrors = {};
-  const set = (field: EventFormField, message: string | undefined) => {
-    if (message) errors[field] = message;
-  };
 
-  set("title", firstError(titleSchema, values.title));
-  if (mode === "draft") return errors;
+  if (values.title.trim().length < MIN_TITLE) errors.title = "Ingresa al menos 3 caracteres.";
+  if (!values.organizationId.trim()) errors.organizationId = "Elige una organización.";
 
-  if (!values.category) set("category", "Elige una categoría.");
-  if (values.description.trim().length < 20) set("description", "Describe el evento en al menos 20 caracteres.");
-  set("date", firstError(dateSchema, values.date));
-  set("time", firstError(timeSchema, values.time));
+  const cover = values.coverImageUrl.trim();
+  if (cover && (cover.length > 500 || !isAllowedImageUrl(cover))) errors.coverImageUrl = COVER_ERROR;
+
+  const publish = mode === "publish";
+
+  if (!values.categoryId.trim()) errors.categoryId = "Elige una categoría.";
+  if (!values.venueId.trim()) errors.venueId = "Elige un recinto.";
+  if (!DATE_RE.test(values.date.trim())) errors.date = "Elige una fecha.";
+  if (!TIME_RE.test(values.time.trim())) errors.time = "Elige una hora.";
   if (!errors.date && !errors.time) {
     const startsAt = toStartsAt(values.date, values.time);
-    if (!startsAt || new Date(startsAt) <= now) set("date", "La fecha debe ser futura.");
+    if (!startsAt) errors.date = "Elige una fecha válida.";
+    else if (publish && new Date(startsAt) <= new Date()) errors.date = "La fecha debe ser futura.";
   }
-  if (!values.venue.trim()) set("venue", REQUIRED);
-  if (!values.city.trim()) set("city", REQUIRED);
 
-  if (values.tiers.length === 0) {
-    set("tiers", "Agrega al menos un tipo de entrada.");
-    return errors;
+  if (publish) {
+    if (values.description.trim().length < MIN_DESCRIPTION) {
+      errors.description = "Describe el evento en al menos 20 caracteres.";
+    }
+    if (!values.tiers.some((tier) => tier.enabled)) {
+      errors.tiers = "Habilita al menos un tipo de entrada.";
+      return errors;
+    }
   }
+
   const tierErrors = values.tiers.map((tier) => {
     const tierError: Partial<Record<TierField, string>> = {};
-    if (!tier.name.trim()) tierError.name = "Ponle un nombre.";
-    const price = firstError(priceSchema, tier.price.trim() || undefined);
-    const quantity = firstError(quantitySchema, tier.quantity.trim() || undefined);
-    if (price) tierError.price = tier.price.trim() ? price : "Ingresa un precio.";
-    if (quantity) tierError.quantity = tier.quantity.trim() ? quantity : "Ingresa una cantidad.";
+    if (!tier.enabled) return tierError;
+    const price = tier.price.trim();
+    if (!price) {
+      if (publish) tierError.price = "Ingresa un precio.";
+    } else {
+      const cents = parsePriceCents(price);
+      if (cents === null || cents > MAX_INT) tierError.price = "Ingresa un precio válido (máximo 2 decimales).";
+      else if (publish && cents <= 0) tierError.price = "El precio debe ser mayor a 0.";
+    }
+    if (isGeneral(zones, tier.zoneId)) {
+      const text = tier.quantity.trim();
+      if (!text) {
+        if (publish) tierError.quantity = "Ingresa una cantidad.";
+      } else if (!/^\d+$/.test(text) || Number.parseInt(text, 10) <= 0 || Number.parseInt(text, 10) > MAX_INT) {
+        tierError.quantity = "Usa un número entero mayor a 0.";
+      }
+    }
     return tierError;
   });
-  if (tierErrors.some((tierError) => Object.keys(tierError).length > 0)) {
-    errors.tierErrors = tierErrors;
-  }
+  if (tierErrors.some((tierError) => Object.keys(tierError).length > 0)) errors.tierErrors = tierErrors;
   return errors;
 }
 
@@ -127,49 +162,97 @@ export function hasFormErrors(errors: EventFormErrors): boolean {
   return Object.keys(errors).length > 0;
 }
 
-/** Valores del formulario → evento del organizador (sin ventas; descarta tipos de entrada vacíos). */
-export function toOrganizerEvent(values: EventFormValues, status: OrganizerEventStatus, id: string): OrganizerEvent {
+export interface EventSaveInput {
+  mode: EventFormMode;
+  organizationId: string;
+  title: string;
+  categoryId: string | null;
+  description: string | null;
+  startsAt: string | null;
+  venueId: string | null;
+  coverImageUrl: string | null;
+  tiers: { zoneId: string; priceCents: number; quantity: number | null }[];
+}
+
+/** Valores del formulario → payload serializable para el servidor (solo tiers habilitadas). */
+export function toEventSaveInput(values: EventFormValues, mode: EventFormMode, zones: ZoneOption[]): EventSaveInput {
   return {
-    id,
-    catalogEventId: null,
-    status,
+    mode,
+    organizationId: values.organizationId.trim(),
     title: values.title.trim(),
-    category: values.category || null,
-    description: values.description.trim(),
+    categoryId: values.categoryId.trim() || null,
+    description: values.description.trim() || null,
     startsAt: toStartsAt(values.date, values.time),
-    venue: values.venue.trim(),
-    city: values.city.trim(),
-    // Las imágenes locales (blob:) no sobreviven a una recarga: no se guardan.
-    imageUrl: values.imageUrl && !values.imageUrl.startsWith("blob:") ? values.imageUrl : null,
+    venueId: values.venueId.trim() || null,
+    coverImageUrl: values.coverImageUrl.trim() || null,
     tiers: values.tiers
-      .filter((tier) => !isBlankTier(tier))
+      .filter((tier) => tier.enabled)
       .map((tier) => ({
-        name: tier.name.trim(),
-        price: Number.parseFloat(tier.price) || 0,
-        quantity: Number.parseInt(tier.quantity, 10) || 0,
-        sold: 0,
+        zoneId: tier.zoneId.trim(),
+        priceCents: parsePriceCents(tier.price) ?? 0,
+        quantity: isGeneral(zones, tier.zoneId) ? parseQuantity(tier.quantity) : null,
       })),
   };
 }
 
-/** Evento del organizador → valores del formulario (para editar un borrador). */
-export function toFormValues(event: OrganizerEvent): EventFormValues {
-  return {
-    title: event.title,
-    category: event.category ?? "",
-    description: event.description,
-    // `startsAt` siempre se guarda con offset de Lima: la fecha y hora locales están en el propio string.
-    date: event.startsAt?.slice(0, 10) ?? "",
-    time: event.startsAt?.slice(11, 16) ?? "",
-    venue: event.venue,
-    city: event.city,
-    imageUrl: event.imageUrl,
-    tiers: event.tiers.length
-      ? event.tiers.map((tier) => ({
-          name: tier.name,
-          price: tier.price ? String(tier.price) : "",
-          quantity: tier.quantity ? String(tier.quantity) : "",
-        }))
-      : [EMPTY_TIER],
-  };
-}
+const id = z.uuid();
+const nullableText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .transform((value) => value || null);
+
+const baseSaveSchema = z.object({
+  mode: z.enum(["draft", "publish"]),
+  organizationId: id,
+  title: z.string().trim().min(MIN_TITLE, "Ingresa al menos 3 caracteres.").max(120),
+  categoryId: id.nullable(),
+  description: nullableText(5000),
+  startsAt: z.iso.datetime({ offset: true }).nullable(),
+  venueId: id.nullable(),
+  coverImageUrl: nullableText(500).refine((value) => value === null || isAllowedImageUrl(value), COVER_ERROR),
+  tiers: z
+    .array(
+      z.object({
+        zoneId: id,
+        priceCents: z.number().int().min(0).max(MAX_INT),
+        quantity: z.number().int().positive().max(MAX_INT).nullable(),
+      })
+    )
+    .max(MAX_TIERS),
+});
+
+type SaveShape = z.infer<typeof baseSaveSchema>;
+
+const refineSave = (data: SaveShape, ctx: z.RefinementCtx) => {
+  const issue = (path: (string | number)[], message: string) => ctx.addIssue({ code: "custom", path, message });
+
+  const zoneIds = new Set<string>();
+  data.tiers.forEach((tier, index) => {
+    if (zoneIds.has(tier.zoneId)) issue(["tiers", index, "zoneId"], "Zona duplicada.");
+    zoneIds.add(tier.zoneId);
+  });
+
+  if (!data.categoryId) issue(["categoryId"], "Elige una categoría.");
+  if (!data.venueId) issue(["venueId"], "Elige un recinto.");
+  if (!data.startsAt) issue(["startsAt"], "Elige fecha y hora válidas.");
+
+  if (data.mode === "draft") return;
+
+  if (!data.description || data.description.length < MIN_DESCRIPTION) {
+    issue(["description"], "Describe el evento en al menos 20 caracteres.");
+  }
+  if (data.startsAt && new Date(data.startsAt) <= new Date()) issue(["startsAt"], "La fecha debe ser futura.");
+  if (data.tiers.length === 0) issue(["tiers"], "Habilita al menos un tipo de entrada.");
+  data.tiers.forEach((tier, index) => {
+    if (tier.priceCents <= 0) issue(["tiers", index, "priceCents"], "El precio debe ser mayor a 0.");
+  });
+};
+
+export const eventSaveSchema: z.ZodType<EventSaveInput> = baseSaveSchema.superRefine(refineSave);
+
+export const eventUpdateSchema: z.ZodType<EventSaveInput & { id: string }> = baseSaveSchema
+  .extend({ id })
+  .superRefine(refineSave);

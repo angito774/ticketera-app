@@ -149,6 +149,12 @@ export function VenueMap({ layout, activeZoneId, highlightedZoneId = null, onSel
                 isDimmed && "opacity-45"
               )}
             >
+              {/* Halo de foco por teclado: blanco fuera de la zona, así se ve sobre cualquier tono de relleno (contraste ~16:1 contra el fondo del mapa). */}
+              <path
+                aria-hidden="true"
+                d={shape.path}
+                className="pointer-events-none fill-none stroke-white stroke-[6] opacity-0 group-focus-visible/zone:opacity-100"
+              />
               <path
                 d={shape.path}
                 filter={isActive ? `url(#${id}-glow)` : undefined}
@@ -156,8 +162,7 @@ export function VenueMap({ layout, activeZoneId, highlightedZoneId = null, onSel
                   tone.fill,
                   "stroke-[2.5] transition-[stroke,filter] duration-200 motion-reduce:transition-none",
                   isActive ? "stroke-white" : isHighlighted ? "stroke-white/80" : "stroke-brand-deep",
-                  !isSoldOut && !isActive && "group-hover/zone:stroke-white/70",
-                  "group-focus-visible/zone:stroke-ring"
+                  !isSoldOut && !isActive && "group-hover/zone:stroke-white/70"
                 )}
               />
               {isSoldOut && <path d={shape.path} fill={`url(#${id}-hatch)`} className="pointer-events-none" />}

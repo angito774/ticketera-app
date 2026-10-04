@@ -37,7 +37,7 @@ export function EventSearchBar({ defaultQuery, onSearch, className }: EventSearc
           name="q"
           defaultValue={defaultQuery}
           placeholder="Artista, evento o ciudad"
-          className="h-12 rounded-xl border-0 pl-10 text-base focus-visible:ring-0 md:text-[0.9375rem]"
+          className="h-12 rounded-xl border-0 pl-10 text-base md:text-[0.9375rem]"
         />
       </label>
       <Button type="submit" variant="cta" className="h-12 rounded-xl px-5 text-[0.9375rem]">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { CircleAlert, Loader2, Lock, Ticket } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -22,10 +23,9 @@ import {
   type CheckoutFieldErrors,
   type CheckoutFormValues,
 } from "@/modules/checkout/schemas/checkout.schema";
-import { createOrder } from "@/modules/checkout/services/orders.service";
-import { useOrderStore } from "@/modules/checkout/store/order.store";
+import { purchaseTicketsAction } from "@/modules/checkout/actions/purchase.actions";
 import type { EventDetail } from "@/modules/events/types/event.types";
-import { buildPurchaseSummary, usePurchaseStore } from "@/modules/tickets/store/purchase.store";
+import { buildPurchaseSummary, usePurchaseStore, type PurchaseSelection } from "@/modules/tickets/store/purchase.store";
 import type { VenueLayout } from "@/modules/tickets/types/venue.types";
 
 interface CheckoutViewProps {
@@ -47,8 +47,7 @@ const FIELD_ORDER: CheckoutField[] = [
   "acceptedTerms",
 ];
 
-/** Simula la latencia de una pasarela de pago. */
-const MOCK_PAYMENT_DELAY_MS = 900;
+const RESERVATION_MINUTES = 10;
 
 export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   const router = useRouter();
@@ -56,33 +55,40 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   const ticketsHref = `/events/${event.id}/tickets`;
 
   const purchase = usePurchaseStore(
-    useShallow(({ eventId, quantities, seats }) => ({ eventId, quantities, seats }))
+    useShallow(({ eventId, quantities, seats, clear }) => ({ eventId, quantities, seats, clear }))
   );
-  const { expiresAt, startReservation, resetReservation, completeOrder } = useOrderStore(
-    useShallow((state) => ({
-      expiresAt: state.reservationExpiresAt[event.id] ?? null,
-      startReservation: state.startReservation,
-      resetReservation: state.resetReservation,
-      completeOrder: state.completeOrder,
-    }))
-  );
+  const { user } = useUser();
 
+  // Tras pagar se congela la selección: el store se limpia pero el resumen no debe vaciarse mientras se navega.
+  const [paidSelection, setPaidSelection] = useState<PurchaseSelection | null>(null);
   const selection = useMemo(
-    () => ({ quantities: purchase.quantities, seats: purchase.seats }),
-    [purchase.quantities, purchase.seats]
+    () => paidSelection ?? { quantities: purchase.quantities, seats: purchase.seats },
+    [paidSelection, purchase.quantities, purchase.seats]
   );
   const summary = useMemo(() => buildPurchaseSummary(layout, selection), [layout, selection]);
-  const hasSelection = hydrated && purchase.eventId === event.id && summary.ticketCount > 0;
+  const hasSelection =
+    hydrated && (paidSelection !== null || purchase.eventId === event.id) && summary.ticketCount > 0;
 
   const [values, setValues] = useState<CheckoutFormValues>(EMPTY_CHECKOUT_VALUES);
   // Campos que el usuario ya dejó: se marcan en rojo si quedaron incompletos.
   const [touched, setTouched] = useState<ReadonlySet<CheckoutField>>(new Set());
   const [wasSubmitted, setWasSubmitted] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [expiresAt] = useState<string>(() =>
+    new Date(Date.now() + RESERVATION_MINUTES * 60_000).toISOString()
+  );
+  const [prefilled, setPrefilled] = useState(false);
+  const isPaying = isPending || paidSelection !== null;
 
-  useEffect(() => {
-    if (hasSelection && !isPaying) startReservation(event.id);
-  }, [hasSelection, isPaying, event.id, startReservation]);
+  if (user && !prefilled) {
+    setPrefilled(true);
+    setValues((current) => ({
+      ...current,
+      fullName: current.fullName || user.fullName || "",
+      email: current.email || user.primaryEmailAddress?.emailAddress || "",
+    }));
+  }
 
   const countdown = useCountdown(expiresAt);
   const isExpired = Boolean(expiresAt) && countdown.isExpired;
@@ -113,23 +119,36 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
       return;
     }
 
-    setIsPaying(true);
-    setTimeout(() => {
-      completeOrder(
-        createOrder({
-          eventId: event.id,
-          layout,
+    setServerError(null);
+    startTransition(async () => {
+      let result: Awaited<ReturnType<typeof purchaseTicketsAction>>;
+      try {
+        result = await purchaseTicketsAction({
+          eventSlug: event.id,
           selection,
-          buyer: { fullName: values.fullName, email: values.email, paymentMethod: values.paymentMethod },
-        })
-      );
-      // La selección se limpia en la confirmación, para no mostrar el resumen vacío mientras se navega.
-      router.push(`/events/${event.id}/confirmation`);
-    }, MOCK_PAYMENT_DELAY_MS);
+          buyer: {
+            fullName: values.fullName,
+            email: values.email,
+            documentNumber: values.documentNumber,
+            phone: values.phone,
+          },
+          paymentMethod: values.paymentMethod,
+        });
+      } catch {
+        setServerError("No pudimos completar tu compra. Inténtalo de nuevo.");
+        return;
+      }
+      if (!result.ok) {
+        setServerError(result.error);
+        return;
+      }
+      setPaidSelection(selection);
+      purchase.clear();
+      router.push(`/events/${event.id}/confirmation?order=${result.orderId}`);
+    });
   };
 
   const restartReservation = () => {
-    resetReservation(event.id);
     router.push(ticketsHref);
   };
 
@@ -207,6 +226,20 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
         <ReservationNotice timeLeft={countdown.label} isExpired={isExpired} onRestart={restartReservation} />
         <CheckoutSummaryCollapsible event={event} summary={summary} ticketsHref={ticketsHref} />
         <CheckoutForm values={values} errors={errors} onChange={handleChange} onFieldBlur={handleFieldBlur} />
+        {serverError && (
+          <div
+            role="alert"
+            className="flex flex-col gap-2 rounded-2xl bg-destructive/5 p-4 text-sm font-medium text-destructive ring-1 ring-destructive/40"
+          >
+            <span className="flex items-start gap-2">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              {serverError}
+            </span>
+            <Link href={ticketsHref} className="font-medium underline-offset-4 hover:underline">
+              Volver a elegir entradas
+            </Link>
+          </div>
+        )}
       </div>
 
       <CheckoutSummary

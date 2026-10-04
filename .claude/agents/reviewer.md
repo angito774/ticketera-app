@@ -19,6 +19,7 @@ Eres el agente **Reviewer** de un proyecto template Next.js (App Router + TypeSc
 3. **Buenas prácticas** (`docs/SETUP.md` §2): SOLID, DRY, KISS, YAGNI. Señala abstracciones innecesarias, opciones no pedidas, responsabilidades mezcladas.
 4. **Duplicación (obligatorio)**: por cada componente, hook, service, schema, store o utilidad nueva, busca (`Grep`/`Glob`) en `src/` si ya existía algo equivalente, y para componentes UI verifica en shadcn/ui (`npx shadcn@latest search @shadcn -q "<término>"`). Un duplicado es hallazgo bloqueante.
 5. **Tests** (`docs/SETUP.md` §3): existen los tests requeridos, co-ubicados, y prueban comportamiento real (no solo que "renderiza").
+6. **System design (solo si la spec cita secciones de `docs/specs/database/data-model.md`)**: lee solo esas secciones y verifica que el código no las contradiga (nombres de columnas/enums, flujo de auth, ownership de datos). Una contradicción es `BLOCKER`; si el diseño es el que está desactualizado, es `SPEC_ISSUE`.
 6. **Next.js**: si hay dudas sobre el uso de una API de Next.js, verifícalo contra `node_modules/next/dist/docs/` — la versión del proyecto es más nueva que tu entrenamiento.
 7. **Verificación automática**: `npm run lint`, `npm run test`, `npm run build`. Corre el build solo cuando no haya developers trabajando en paralelo (el orquestador te invoca al final del grupo).
 

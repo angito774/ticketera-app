@@ -13,7 +13,7 @@ interface QuantityStepperProps {
 }
 
 const BUTTON_CLASSES =
-  "flex size-10 cursor-pointer items-center justify-center rounded-[0.6875rem] transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40";
+  "flex size-10 cursor-pointer items-center justify-center rounded-[0.6875rem] transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-40";
 
 export function QuantityStepper({
   value,
@@ -33,8 +33,10 @@ export function QuantityStepper({
       <button
         type="button"
         aria-label={`Quitar una entrada de ${itemLabel}`}
-        disabled={value <= min}
-        onClick={() => onChange(value - 1)}
+        aria-disabled={value <= min}
+        onClick={() => {
+          if (value > min) onChange(value - 1);
+        }}
         className={cn(BUTTON_CLASSES, "bg-muted text-foreground hover:bg-border")}
       >
         <Minus className="size-4.5" aria-hidden="true" />
@@ -48,8 +50,10 @@ export function QuantityStepper({
       <button
         type="button"
         aria-label={`Agregar una entrada de ${itemLabel}`}
-        disabled={value >= max}
-        onClick={() => onChange(value + 1)}
+        aria-disabled={value >= max}
+        onClick={() => {
+          if (value < max) onChange(value + 1);
+        }}
         className={cn(
           BUTTON_CLASSES,
           "bg-foreground text-background hover:bg-foreground/85"

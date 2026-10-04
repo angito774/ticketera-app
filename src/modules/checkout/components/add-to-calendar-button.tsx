@@ -3,11 +3,11 @@
 import { CalendarPlus } from "lucide-react";
 
 import { buildCalendarFile } from "@/lib/calendar";
-import type { Order } from "@/modules/checkout/types/order.types";
+import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
 
 interface AddToCalendarButtonProps {
-  order: Order;
+  order: Pick<OrderView, "number" | "tickets">;
   event: Pick<EventDetail, "title" | "date" | "venue" | "address" | "city">;
   label?: string;
   className?: string;
@@ -26,7 +26,7 @@ export function AddToCalendarButton({
       title: event.title,
       start: event.date,
       location: `${event.venue}, ${event.address}, ${event.city}`,
-      description: `Pedido ${order.number} · ${order.ticketCount} ${order.ticketCount === 1 ? "entrada" : "entradas"}`,
+      description: `Pedido ${order.number} · ${order.tickets.length} ${order.tickets.length === 1 ? "entrada" : "entradas"}`,
     });
     const url = URL.createObjectURL(new Blob([content], { type: "text/calendar;charset=utf-8" }));
     const link = document.createElement("a");

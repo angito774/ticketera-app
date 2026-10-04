@@ -2,12 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { ActiveFilterChips } from "@/modules/events/components/active-filter-chips";
+import { EventsError, EventsListSkeleton } from "@/modules/events/components/category-events";
 import { EventCard } from "@/modules/events/components/event-card";
 import { EventFiltersDialog } from "@/modules/events/components/event-filters-dialog";
 import { EventFiltersForm } from "@/modules/events/components/event-filters-form";
 import { EventResultsEmpty } from "@/modules/events/components/event-results-empty";
 import { EventSearchBar } from "@/modules/events/components/event-search-bar";
 import { EventSortToggle } from "@/modules/events/components/event-sort-toggle";
+import { useEvents } from "@/modules/events/hooks/use-events";
 import { useEventFiltersNavigation } from "@/modules/events/hooks/use-event-filters-navigation";
 import {
   DEFAULT_EVENT_FILTERS,
@@ -15,11 +17,10 @@ import {
   type EventFilters,
 } from "@/modules/events/schemas/event-filters.schema";
 import type { EventFacets } from "@/modules/events/services/events.service";
-import type { Event } from "@/modules/events/types/event.types";
+import { parseEventListParams } from "@/modules/events/schemas/event-list.schema";
 
 interface EventSearchViewProps {
   filters: EventFilters;
-  results: Event[];
   facets: EventFacets;
   className?: string;
 }
@@ -28,9 +29,13 @@ function countLabel(count: number): string {
   return count === 1 ? "1 evento" : `${count} eventos`;
 }
 
-/** Búsqueda de eventos: los filtros viven en la URL y los resultados llegan filtrados desde el servidor. */
-export function EventSearchView({ filters: urlFilters, results, facets, className }: EventSearchViewProps) {
+/** Búsqueda de eventos: los filtros viven en la URL; los resultados vienen de `useEvents` (precargados en el servidor). */
+export function EventSearchView({ filters: urlFilters, facets, className }: EventSearchViewProps) {
   const { filters, isPending, apply } = useEventFiltersNavigation(urlFilters);
+  // Con los filtros de la URL (no los optimistas) para que la clave coincida con la hidratada.
+  const query = useEvents({ ...parseEventListParams({}), ...urlFilters, scope: "public" });
+  const results = query.data?.events ?? [];
+  const total = query.data?.total ?? results.length;
   const clearAll = () => apply({ ...DEFAULT_EVENT_FILTERS, sort: filters.sort });
   const hasFilters = filters.q !== "" || countActiveFilters(filters) > 0;
 
@@ -47,7 +52,7 @@ export function EventSearchView({ filters: urlFilters, results, facets, classNam
 
         {/* Móvil: filtros en panel, orden compacto y categorías como chips */}
         <div className="flex gap-2 lg:hidden">
-          <EventFiltersDialog filters={filters} facets={facets} resultCount={results.length} onChange={apply} />
+          <EventFiltersDialog filters={filters} facets={facets} resultCount={total} onChange={apply} />
           <EventSortToggle
             variant="compact"
             value={filters.sort}
@@ -109,7 +114,7 @@ export function EventSearchView({ filters: urlFilters, results, facets, classNam
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <p aria-live="polite" className="font-semibold">
-                {countLabel(results.length)}
+                {countLabel(total)}
               </p>
               <ActiveFilterChips filters={filters} facets={facets} onChange={apply} />
             </div>
@@ -121,7 +126,11 @@ export function EventSearchView({ filters: urlFilters, results, facets, classNam
           </div>
 
           <div className={cn("transition-opacity duration-200", isPending && "opacity-60")}>
-            {results.length === 0 ? (
+            {query.isError ? (
+              <EventsError onRetry={() => query.refetch()} />
+            ) : query.isPending ? (
+              <EventsListSkeleton />
+            ) : results.length === 0 ? (
               <EventResultsEmpty onClear={clearAll} />
             ) : (
               <>

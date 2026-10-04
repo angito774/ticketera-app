@@ -3,17 +3,16 @@ import { CalendarCheck, Ticket, Wallet } from "lucide-react";
 
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { OrganizerSummary } from "@/modules/events/types/event-list.types";
 
-interface SummaryKpisProps {
-  sold: number;
-  revenue: number;
-  published: number;
+interface SummaryKpisProps extends Partial<Pick<OrganizerSummary, "sold" | "revenue" | "published">> {
+  loading?: boolean;
   className?: string;
 }
 
 const numberFormatter = new Intl.NumberFormat("es-PE");
 
-export function SummaryKpis({ sold, revenue, published, className }: SummaryKpisProps) {
+export function SummaryKpis({ sold = 0, revenue = 0, published = 0, loading = false, className }: SummaryKpisProps) {
   const items: { label: string; value: string; icon: ComponentType<{ className?: string }> }[] = [
     { label: "Entradas vendidas", value: numberFormatter.format(sold), icon: Ticket },
     { label: "Ingresos", value: formatPrice(revenue), icon: Wallet },
@@ -21,7 +20,7 @@ export function SummaryKpis({ sold, revenue, published, className }: SummaryKpis
   ];
 
   return (
-    <dl className={cn("grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5", className)}>
+    <dl aria-busy={loading} className={cn("grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5", className)}>
       {items.map(({ label, value, icon: Icon }, index) => (
         <div
           key={label}
@@ -37,7 +36,16 @@ export function SummaryKpis({ sold, revenue, published, className }: SummaryKpis
             </span>
             {label}
           </dt>
-          <dd className="text-2xl font-bold tracking-tight tabular-nums lg:text-3xl">{value}</dd>
+          <dd className="text-2xl font-bold tracking-tight tabular-nums lg:text-3xl">
+            {loading ? (
+              <>
+                <span aria-hidden="true" className="block h-8 w-24 animate-pulse rounded-md bg-muted lg:h-9" />
+                <span className="sr-only">Cargando</span>
+              </>
+            ) : (
+              value
+            )}
+          </dd>
         </div>
       ))}
     </dl>

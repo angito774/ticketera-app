@@ -17,11 +17,18 @@ import {
   usePurchaseStore,
   type PurchaseSelection,
 } from "@/modules/tickets/store/purchase.store";
-import type { VenueLayout } from "@/modules/tickets/types/venue.types";
+import {
+  applyAvailability,
+  findUnavailableSelection,
+  getZoneMaxTickets,
+  type EventAvailability,
+} from "@/modules/tickets/services/availability-overlay";
+import type { VenueLayout, VenueZone } from "@/modules/tickets/types/venue.types";
 
 interface TicketSelectionProps {
   eventId: string;
   layout: VenueLayout;
+  availability?: EventAvailability | null;
   checkoutHref: string;
   className?: string;
 }
@@ -31,7 +38,13 @@ const EMPTY_SELECTION: PurchaseSelection = { quantities: {}, seats: {} };
 const CARD_CLASSES = "flex flex-col gap-4 rounded-3xl border bg-card p-4 lg:gap-5 lg:px-7 lg:pt-6 lg:pb-7";
 
 /** Selección de entradas: mapa de zonas, mapa de asientos, lista de zonas y resumen, conectados al store. */
-export function TicketSelection({ eventId, layout, checkoutHref, className }: TicketSelectionProps) {
+export function TicketSelection({
+  eventId,
+  layout: baseLayout,
+  availability,
+  checkoutHref,
+  className,
+}: TicketSelectionProps) {
   const state = usePurchaseStore(
     useShallow((store) => ({
       eventId: store.eventId,
@@ -61,6 +74,46 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
   const activeZoneId = isCurrentEvent ? state.activeZoneId : null;
 
   const [highlightedZoneId, setHighlightedZoneId] = useState<string | null>(null);
+  const [removedNotice, setRemovedNotice] = useState(false);
+
+  const layout = useMemo(
+    () => (availability ? applyAvailability(baseLayout, availability) : baseLayout),
+    [baseLayout, availability]
+  );
+
+  const hasUnavailable =
+    !!availability &&
+    isCurrentEvent &&
+    (() => {
+      const found = findUnavailableSelection(selection, availability);
+      return Object.keys(found.seats).length > 0 || found.zones.length > 0;
+    })();
+  if (hasUnavailable && !removedNotice) setRemovedNotice(true);
+
+  useEffect(() => {
+    if (!availability || !isCurrentEvent) return;
+    const current = usePurchaseStore.getState();
+    const { seats, zones } = findUnavailableSelection(current, availability);
+    if (!Object.keys(seats).length && !zones.length) return;
+
+    usePurchaseStore.setState({
+      seats: Object.fromEntries(
+        Object.entries(current.seats).map(([zoneId, ids]) => [
+          zoneId,
+          ids.filter((id) => !seats[zoneId]?.includes(id)),
+        ])
+      ),
+      quantities: Object.fromEntries(
+        Object.entries(current.quantities).map(([zoneId, quantity]) => [
+          zoneId,
+          zones.includes(zoneId) ? getZoneMaxTickets(availability, zoneId) : quantity,
+        ])
+      ),
+    });
+  }, [availability, isCurrentEvent]);
+
+  const handleQuantityChange = (zone: VenueZone, quantity: number) =>
+    setQuantity(zone, Math.min(quantity, getZoneMaxTickets(availability ?? null, zone.id)));
 
   const summary = useMemo(() => buildPurchaseSummary(layout, selection), [layout, selection]);
   const activeZone = layout.zones.find((zone) => zone.id === activeZoneId);
@@ -74,6 +127,11 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
       )}
     >
       <div className="flex flex-col gap-4 lg:gap-6">
+        {removedNotice && (
+          <p role="status" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium">
+            Algunas entradas que elegiste ya no están disponibles y se quitaron de tu selección
+          </p>
+        )}
         <section className={CARD_CLASSES}>
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-lg font-semibold lg:text-xl">Elige tu zona</h2>
@@ -126,7 +184,7 @@ export function TicketSelection({ eventId, layout, checkoutHref, className }: Ti
           selection={selection}
           activeZoneId={activeZoneId}
           onSelectZone={selectZone}
-          onQuantityChange={setQuantity}
+          onQuantityChange={handleQuantityChange}
         />
       </div>
 

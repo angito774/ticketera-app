@@ -1,106 +1,73 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { useState } from "react";
+import Image from "next/image";
+import { ImageIcon } from "lucide-react";
 
+import { FieldError, FIELD_INPUT_CLASSES, fieldA11yProps } from "@/components/form-field";
+import { Input } from "@/components/ui/input";
+import { ALLOWED_IMAGE_HOSTS, isAllowedImageUrl } from "@/lib/image-hosts";
 import { cn } from "@/lib/utils";
 
 interface CoverImageFieldProps {
-  value: string | null;
-  onChange: (url: string | null) => void;
+  value: string;
+  onChange: (url: string) => void;
+  error?: string;
+  disabled?: boolean;
+  id: string;
 }
 
-const ACCEPTED = ["image/jpeg", "image/png"];
+function CoverPreview({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
 
-/**
- * Imagen de portada con vista previa local (`URL.createObjectURL`). La imagen no se
- * sube a ningún lado: es solo UI.
- */
-export function CoverImageField({ value, onChange }: CoverImageFieldProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  return (
+    <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-accent text-primary">
+      {failed ? (
+        <span className="flex flex-col items-center gap-2 px-4 text-center text-sm text-muted-foreground">
+          <ImageIcon className="size-6" aria-hidden="true" />
+          No se pudo cargar la imagen
+        </span>
+      ) : (
+        <Image
+          src={src}
+          alt=""
+          fill
+          sizes="(min-width: 1024px) 480px, 100vw"
+          onError={() => setFailed(true)}
+          className="object-cover"
+        />
+      )}
+    </div>
+  );
+}
 
-  // Libera la URL local anterior al reemplazarla o quitarla.
-  const releasePrevious = () => {
-    if (value?.startsWith("blob:")) URL.revokeObjectURL(value);
-  };
-
-  const pick = (file: File | undefined) => {
-    if (!file) return;
-    if (!ACCEPTED.includes(file.type)) {
-      setError("Usa una imagen JPG o PNG.");
-      return;
-    }
-    setError(null);
-    releasePrevious();
-    onChange(URL.createObjectURL(file));
-  };
-
-  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
-    event.preventDefault();
-    setIsDragging(false);
-    pick(event.dataTransfer.files[0]);
-  };
-
-  if (value) {
-    return (
-      <div className="relative overflow-hidden rounded-2xl border">
-        {/* Vista previa de un blob local: next/image no aplica. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={value} alt="Vista previa de la portada" className="aspect-video w-full object-cover" />
-        <button
-          type="button"
-          onClick={() => {
-            releasePrevious();
-            onChange(null);
-            if (inputRef.current) inputRef.current.value = "";
-          }}
-          className="absolute top-3 right-3 flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-background/90 px-3 text-sm font-semibold shadow-sm outline-none hover:bg-background focus-visible:ring-3 focus-visible:ring-ring"
-        >
-          <X className="size-4" aria-hidden="true" />
-          Quitar imagen
-        </button>
-      </div>
-    );
-  }
+/** Imagen de portada por enlace https (opcional) con vista previa; no sube archivos. */
+export function CoverImageField({ value, onChange, error, disabled, id }: CoverImageFieldProps) {
+  const src = value.trim();
+  const helpId = `${id}-help`;
+  const a11y = fieldA11yProps(id, error);
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label
-        onDragOver={(event) => {
-          event.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-        className={cn(
-          "flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-[1.5px] border-dashed px-6 py-10 text-center transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring",
-          isDragging ? "border-primary bg-accent" : "hover:bg-muted/60"
-        )}
-      >
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-primary">
-          <ImagePlus className="size-6" aria-hidden="true" />
-        </span>
-        <span className="font-semibold">
-          <span className="hidden sm:inline">Arrastra una imagen o haz clic para subirla</span>
-          <span className="sm:hidden">Subir imagen</span>
-        </span>
-        <span className="text-[0.8125rem] text-muted-foreground">JPG o PNG, horizontal (16:9)</span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED.join(",")}
-          aria-describedby={error ? "cover-image-error" : undefined}
-          onChange={(event) => pick(event.target.files?.[0])}
-          className="sr-only"
-        />
+      <label htmlFor={id} className={cn("text-sm font-medium", error && "text-destructive")}>
+        Imagen de portada (URL)
       </label>
-      {error && (
-        <p id="cover-image-error" role="alert" className="text-[0.8125rem] text-destructive">
-          {error}
-        </p>
-      )}
+      <Input
+        {...a11y}
+        aria-describedby={error ? `${helpId} ${id}-error` : helpId}
+        type="url"
+        inputMode="url"
+        placeholder="https://"
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={FIELD_INPUT_CLASSES}
+      />
+      <p id={helpId} className="text-[0.8125rem] text-muted-foreground">
+        Pega el enlace de una imagen https de un dominio permitido ({ALLOWED_IMAGE_HOSTS.join(", ")}); es opcional
+      </p>
+      {error && <FieldError id={id}>{error}</FieldError>}
+      {isAllowedImageUrl(src) && <CoverPreview key={src} src={src} />}
     </div>
   );
 }

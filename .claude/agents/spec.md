@@ -15,7 +15,8 @@ Tu única salida escrita es la spec en `docs/specs/`. **No escribes ni modificas
    - Busca en el repo (`Grep`/`Glob`) en `src/modules/`, `src/components/`, `src/hooks/` y `src/lib/` algo que resuelva o casi resuelva la necesidad.
    - Para componentes de UI, busca en el registro de shadcn: `npx shadcn@latest search @shadcn -q "<término>"` (y `npx shadcn@latest docs <componente>` si necesitas ver su API).
    - Registra en la spec lo que encontraste y la decisión: **reusar**, **extender/generalizar**, **agregar de shadcn** o **crear nuevo** (solo si la búsqueda confirmó que no hay nada). Lo nuevo que pueda ser compartido se diseña reutilizable.
-3. Si el pedido es ambiguo en algo que cambia el diseño, no lo inventes: lista la duda en `Preguntas abiertas` y devuélvela al orquestador en tu respuesta.
+3. **System design (solo si aplica)**: `docs/specs/database/data-model.md` es el diseño del sistema (decisiones de arquitectura, auth con Clerk + Google, Stripe, entidades y enums). Léelo **solo** si la feature toca auth, usuarios/roles, datos persistidos, órdenes/pagos o tipos que mapean a tablas; usa `Grep` por el término y lee solo esa sección, no el archivo entero. Si aplica, cita en la spec las secciones relevantes (ej. "ver data-model.md § Autenticación") en vez de copiarlas, y si el pedido contradice el diseño, lístalo en `Preguntas abiertas`. No modifiques ese archivo.
+4. Si el pedido es ambiguo en algo que cambia el diseño, no lo inventes: lista la duda en `Preguntas abiertas` y devuélvela al orquestador en tu respuesta.
 
 ## Dónde y cómo
 

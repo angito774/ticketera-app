@@ -2,20 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarX, LogIn, Ticket } from "lucide-react";
+import { CalendarX, Ticket } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import { OrderList } from "@/modules/account/components/order-list";
 import { TicketViewer } from "@/modules/account/components/ticket-viewer";
-import { getOrdersForUser, splitOrdersByDate } from "@/modules/account/services/my-tickets.service";
-import { useSessionStore } from "@/modules/account/store/session.store";
-import { useOrderStore } from "@/modules/checkout/store/order.store";
+import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
 
 interface MyTicketsViewProps {
+  orders: OrderView[];
   events: Record<string, EventDetail>;
 }
 
@@ -46,37 +44,42 @@ function EmptyState({
   );
 }
 
-/** Mis entradas: pedidos de la sesión simulada, separados en próximos y pasados. */
-export function MyTicketsView({ events }: MyTicketsViewProps) {
-  const hydrated = useHydrated();
-  const user = useSessionStore((state) => state.user);
-  const storedOrders = useOrderStore((state) => state.orders);
+/** Divide por fecha del evento (sin fecha conocida cuenta como próxima) y ordena más recientes primero. */
+function splitOrders(orders: OrderView[], events: Record<string, EventDetail>, now: Date) {
+  const sorted = [...orders].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const upcoming: OrderView[] = [];
+  const past: OrderView[] = [];
+  for (const order of sorted) {
+    const event = events[order.eventSlug];
+    (event && new Date(event.date).getTime() < now.getTime() ? past : upcoming).push(order);
+  }
+  return { upcoming, past };
+}
+
+/** Mis entradas: órdenes reales del usuario, separadas en próximas y pasadas. */
+export function MyTicketsView({ orders: allOrders, events }: MyTicketsViewProps) {
   const [now] = useState(() => new Date());
   const [tab, setTab] = useState<Tab>("upcoming");
-  const [selectedNumber, setSelectedNumber] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { upcoming, past } = useMemo(
-    () => splitOrdersByDate(user ? getOrdersForUser(user.email, storedOrders) : [], now),
-    [user, storedOrders, now]
-  );
+  const { upcoming, past } = useMemo(() => splitOrders(allOrders, events, now), [allOrders, events, now]);
 
-  if (!hydrated) {
-    return <div aria-busy="true" className="min-h-96" />;
-  }
-
-  if (!user) {
+  if (allOrders.length === 0) {
     return (
-      <EmptyState
-        icon={LogIn}
-        title="Inicia sesión para ver tus entradas"
-        text="Tus entradas quedan guardadas en tu cuenta, listas para mostrar en el ingreso."
-        action={{ href: "/login?next=/my-tickets", label: "Iniciar sesión" }}
-      />
+      <div className="flex flex-col gap-6 lg:gap-8">
+        <h1 className="text-2xl font-bold tracking-tight lg:text-4xl">Mis entradas</h1>
+        <EmptyState
+          icon={Ticket}
+          title="Aún no tienes entradas"
+          text="Las entradas que compres aparecerán aquí."
+          action={{ href: "/events", label: "Explorar eventos" }}
+        />
+      </div>
     );
   }
 
   const orders = tab === "upcoming" ? upcoming : past;
-  const selected = orders.find((order) => order.number === selectedNumber) ?? orders[0];
+  const selected = orders.find((order) => order.id === selectedId) ?? orders[0];
   const tabs: { key: Tab; label: string }[] = [
     { key: "upcoming", label: `Próximas (${upcoming.length})` },
     { key: "past", label: `Pasadas (${past.length})` },
@@ -115,8 +118,8 @@ export function MyTicketsView({ events }: MyTicketsViewProps) {
         ) : (
           <EmptyState
             icon={Ticket}
-            title="Aún no tienes entradas"
-            text="Las entradas que compres con este correo aparecerán aquí."
+            title="Aún no tienes entradas próximas"
+            text="Las entradas de tus próximos eventos aparecerán aquí."
             action={{ href: "/events", label: "Explorar eventos" }}
           />
         )
@@ -125,12 +128,10 @@ export function MyTicketsView({ events }: MyTicketsViewProps) {
           <OrderList
             orders={orders}
             events={events}
-            selectedNumber={selected.number}
-            onSelect={setSelectedNumber}
+            selectedId={selected.id}
+            onSelect={setSelectedId}
           />
-          {events[selected.eventId] && (
-            <TicketViewer key={selected.number} order={selected} event={events[selected.eventId]} />
-          )}
+          <TicketViewer key={selected.id} order={selected} event={events[selected.eventSlug]} />
         </div>
       )}
     </div>

@@ -53,7 +53,7 @@ export function EventDetailHero({
         <div className="relative aspect-[16/10] lg:order-2 lg:aspect-auto">
           <Image
             src={event.imageUrl}
-            alt={event.title}
+            alt=""
             fill
             priority
             sizes="(min-width: 1024px) 60vw, 100vw"

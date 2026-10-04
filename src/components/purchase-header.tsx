@@ -70,7 +70,7 @@ export function PurchaseHeader({
                     )}
                   >
                     {isDone ? (
-                      <Check className="size-4" aria-label="Completado" />
+                      <Check className="size-4" role="img" aria-label="Completado" />
                     ) : (
                       step
                     )}
@@ -106,6 +106,7 @@ export function PurchaseHeader({
           </div>
           <Lock
             className="size-4 text-muted-foreground"
+            role="img"
             aria-label="Compra segura"
           />
         </div>

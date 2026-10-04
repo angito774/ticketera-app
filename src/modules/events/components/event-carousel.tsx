@@ -27,11 +27,12 @@ export function EventCarousel({
   return (
     <section className={cn("relative", className)}>
       <h2 className="text-2xl font-bold md:text-3xl">{title}</h2>
-      <Carousel className="mt-6">
+      <Carousel className="mt-6" aria-label={title}>
         <CarouselContent>
-          {events.map((event) => (
+          {events.map((event, index) => (
             <CarouselItem
               key={event.id}
+              aria-label={`${index + 1} de ${events.length}`}
               className="basis-full sm:basis-1/2 lg:basis-1/3"
             >
               <EventCard event={event} />

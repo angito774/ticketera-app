@@ -89,6 +89,22 @@ function firstInvalidId(errors: EventFormErrors): string | null {
   return null;
 }
 
+/** Enlaces del resumen de errores: cada error de campo y, si hay, uno para los tipos de entrada. */
+function errorSummaryItems(errors: EventFormErrors): { href: string; message: string }[] {
+  const items = FIELD_ORDER.flatMap((field) => {
+    const message = errors[field];
+    return message ? [{ href: `#${fieldId(field)}`, message }] : [];
+  });
+  const tierIndex = errors.tierErrors?.findIndex((tierError) => Object.keys(tierError).length > 0) ?? -1;
+  if (tierIndex >= 0) {
+    const field = errors.tierErrors?.[tierIndex]?.price ? "price" : "quantity";
+    items.push({ href: `#${tierFieldId(tierIndex, field)}`, message: "Revisa los precios y cantidades de las entradas." });
+  } else if (errors.tiers) {
+    items.push({ href: `#${tierToggleId(0)}`, message: errors.tiers });
+  }
+  return items;
+}
+
 export function EventEditor({ options, initial }: EventEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -226,6 +242,9 @@ export function EventEditor({ options, initial }: EventEditorProps) {
       </div>
     );
 
+  const summaryItems = submittedMode ? errorSummaryItems(errors) : [];
+  const savingText = pending ? (savingMode === "publish" ? "Publicando evento…" : "Guardando…") : "";
+
   const heading = isCancelled ? "Evento cancelado" : isEditing ? "Editar evento" : "Crear evento";
   const notice = isCancelled ? CANCELLED_NOTICE : isPublished ? PUBLISHED_NOTICE : null;
 
@@ -251,6 +270,7 @@ export function EventEditor({ options, initial }: EventEditorProps) {
 
       <form
         noValidate
+        aria-busy={pending}
         onSubmit={(event) => {
           event.preventDefault();
         }}
@@ -381,6 +401,37 @@ export function EventEditor({ options, initial }: EventEditorProps) {
               <p className="text-sm text-muted-foreground">Elige un recinto para configurar las entradas de sus zonas.</p>
             )}
           </Section>
+
+          <p role="status" className="sr-only">
+            {savingText}
+          </p>
+
+          {summaryItems.length > 0 && (
+            <section
+              aria-labelledby="event-errors-summary"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-3 text-sm text-destructive"
+            >
+              <h2 id="event-errors-summary" className="font-semibold">
+                Revisa los datos antes de guardar
+              </h2>
+              <ul className="mt-2 list-disc pl-5">
+                {summaryItems.map((item) => (
+                  <li key={item.href}>
+                    <a
+                      href={item.href}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        document.getElementById(item.href.slice(1))?.focus();
+                      }}
+                      className="underline underline-offset-4"
+                    >
+                      {item.message}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {serverError && (
             <p

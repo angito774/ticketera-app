@@ -231,13 +231,9 @@ export function CheckoutForm({ values, errors, onChange, onFieldBlur, className 
           />
           <span>
             Acepto los{" "}
-            <a href="#" className="font-medium text-primary underline-offset-4 hover:underline">
-              Términos y condiciones
-            </a>{" "}
+            <span className="font-medium text-foreground">Términos y condiciones</span>{" "}
             y la{" "}
-            <a href="#" className="font-medium text-primary underline-offset-4 hover:underline">
-              Política de privacidad
-            </a>
+            <span className="font-medium text-foreground">Política de privacidad</span>
             .<RequiredMark />
           </span>
         </label>

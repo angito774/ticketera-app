@@ -116,7 +116,10 @@ export function DashboardShell({ sections, user, children }: DashboardShellProps
 
   return (
     <div className="min-h-screen bg-muted lg:pl-68">
-      <aside className="fixed inset-y-0 left-0 hidden w-68 flex-col gap-8 border-r bg-background p-5 lg:flex">
+      <aside
+        aria-label="Barra lateral del panel"
+        className="fixed inset-y-0 left-0 hidden w-68 flex-col gap-8 border-r bg-background p-5 lg:flex"
+      >
         <Brand />
         <Navigation sections={sections} pathname={pathname} />
         <Account name={user.name} roleLabel={user.roleLabel} />

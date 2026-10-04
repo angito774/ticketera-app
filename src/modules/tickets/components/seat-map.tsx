@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type KeyboardEvent } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 
@@ -8,6 +8,11 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { MapTooltip, useMapTooltip } from "@/modules/tickets/components/map-tooltip";
 import { getZoneToneClasses } from "@/modules/tickets/components/zone-tones";
+import {
+  focusableSeats,
+  isSeatNavigationKey,
+  nextSeatId,
+} from "@/modules/tickets/services/seat-navigation";
 import type { Seat, VenueZone } from "@/modules/tickets/types/venue.types";
 
 interface SeatMapProps {
@@ -42,6 +47,13 @@ function LegendSeat({ className }: { className: string }) {
 export function SeatMap({ zone, selectedSeatIds, maxReached, onToggleSeat, className }: SeatMapProps) {
   const { containerRef, tooltip, show, hide } = useMapTooltip();
   const tone = getZoneToneClasses(zone);
+  const descriptionId = useId();
+  const seatRefs = useRef(new Map<string, SVGGElement>());
+  const [focusedSeatId, setFocusedSeatId] = useState<string | null>(null);
+
+  // Roving tabindex: el mapa tiene una sola parada de Tab. Si la última butaca enfocada no está en esta zona, se usa la primera libre.
+  const focusable = useMemo(() => focusableSeats(zone), [zone]);
+  const tabStopId = focusable.some((seat) => seat.id === focusedSeatId) ? focusedSeatId : (focusable[0]?.id ?? null);
 
   // El viewBox se calcula a partir de las butacas y las etiquetas de fila (filas curvas).
   const box = useMemo(() => {
@@ -57,15 +69,29 @@ export function SeatMap({ zone, selectedSeatIds, maxReached, onToggleSeat, class
 
   const stageWidth = box.width * 0.5;
 
-  const handleKeyDown = (event: KeyboardEvent<SVGGElement>, seat: Seat) => {
+  const focusSeat = (seatId: string) => {
+    setFocusedSeatId(seatId);
+    seatRefs.current.get(seatId)?.focus();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<SVGGElement>, seat: Seat, isDisabled: boolean) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onToggleSeat(seat);
+      if (!isDisabled) onToggleSeat(seat);
+      return;
+    }
+    if (isSeatNavigationKey(event.key)) {
+      event.preventDefault();
+      const targetId = nextSeatId(zone, seat.id, event.key);
+      if (targetId) focusSeat(targetId);
     }
   };
 
   return (
     <div className={cn("flex flex-col gap-4", className)}>
+      <p id={descriptionId} className="sr-only">
+        Usa las flechas para moverte entre asientos disponibles, Inicio y Fin para ir al principio y al final de la fila, y Enter o Espacio para elegir.
+      </p>
       <TransformWrapper
         minScale={0.5}
         maxScale={4}
@@ -98,6 +124,7 @@ export function SeatMap({ zone, selectedSeatIds, maxReached, onToggleSeat, class
                   viewBox={`${box.minX} ${box.minY} ${box.width} ${box.height}`}
                   role="group"
                   aria-label={`Asientos de ${zone.name}`}
+                  aria-describedby={descriptionId}
                   className="h-auto w-full select-none"
                   style={{ minWidth: box.width * 1.1 }}
                 >
@@ -156,13 +183,18 @@ export function SeatMap({ zone, selectedSeatIds, maxReached, onToggleSeat, class
                         return (
                           <g
                             key={seat.id}
-                            role="button"
-                            tabIndex={isDisabled ? -1 : 0}
+                            ref={(element) => {
+                              if (element) seatRefs.current.set(seat.id, element);
+                              else seatRefs.current.delete(seat.id);
+                            }}
+                            role={isTaken ? "img" : "button"}
+                            tabIndex={isTaken ? undefined : seat.id === tabStopId ? 0 : -1}
                             aria-label={label}
-                            aria-pressed={isSelected}
-                            aria-disabled={isDisabled || undefined}
+                            aria-pressed={isTaken ? undefined : isSelected}
+                            aria-disabled={!isTaken && isDisabled ? true : undefined}
                             onClick={isDisabled ? undefined : () => onToggleSeat(seat)}
-                            onKeyDown={isDisabled ? undefined : (event) => handleKeyDown(event, seat)}
+                            onKeyDown={isTaken ? undefined : (event) => handleKeyDown(event, seat, isDisabled)}
+                            onFocus={isTaken ? undefined : () => setFocusedSeatId(seat.id)}
                             onPointerMove={
                               isTaken
                                 ? undefined

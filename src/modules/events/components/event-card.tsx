@@ -27,7 +27,7 @@ function HorizontalEventCard({ event, className }: Omit<EventCardProps, "layout"
     <Link href={`/events/${event.id}`} className={cn(LINK_CLASSES, className)}>
       <Card className="flex-row gap-0 overflow-hidden py-0 shadow-sm transition-shadow duration-200 group-hover/event-card:shadow-md">
         <div className="relative w-27 shrink-0 self-stretch bg-muted">
-          <Image src={event.imageUrl} alt={event.title} fill sizes="108px" className="object-cover" />
+          <Image src={event.imageUrl} alt="" fill sizes="108px" className="object-cover" />
           <span className="absolute top-2 left-2 flex w-11 flex-col items-center rounded-lg bg-background py-1 leading-none shadow-sm">
             <span className="text-[0.625rem] font-semibold text-primary">{badge.month}</span>
             <span className="text-base font-bold">{badge.day}</span>
@@ -62,7 +62,7 @@ export function EventCard({ event, layout = "vertical", className }: EventCardPr
         <div className="relative aspect-[4/3] w-full">
           <Image
             src={event.imageUrl}
-            alt={event.title}
+            alt=""
             fill
             sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
             className="object-cover"

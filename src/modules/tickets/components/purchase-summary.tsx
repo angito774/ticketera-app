@@ -1,3 +1,4 @@
+import { useId } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -27,15 +28,23 @@ function ContinueAction({
   className?: string;
 }) {
   const classes = cn(buttonVariants({ variant: "cta" }), "rounded-2xl text-base", className);
+  const hintId = useId();
 
   if (isEmpty) {
     return (
-      <span
-        aria-disabled="true"
-        className={cn(classes, "cursor-not-allowed bg-border text-muted-foreground hover:bg-border")}
-      >
-        Continuar
-      </span>
+      <>
+        <button
+          type="button"
+          disabled
+          aria-describedby={hintId}
+          className={cn(classes, "cursor-not-allowed bg-border text-muted-foreground hover:bg-border")}
+        >
+          Continuar
+        </button>
+        <span id={hintId} className="sr-only">
+          Elige entradas para continuar
+        </span>
+      </>
     );
   }
 

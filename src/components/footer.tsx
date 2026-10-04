@@ -7,38 +7,24 @@ interface FooterProps {
   className?: string;
 }
 
-interface FooterLink {
-  label: string;
-  href: string;
-}
-
 interface FooterColumn {
   title: string;
-  links: FooterLink[];
+  /** Texto de las secciones; sin destino todavía, así que no son enlaces. */
+  items: string[];
 }
 
 const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Empresa",
-    links: [
-      { label: "Sobre nosotros", href: "#" },
-      { label: "Contacto", href: "#" },
-      { label: "Trabaja con nosotros", href: "#" },
-    ],
+    items: ["Sobre nosotros", "Contacto", "Trabaja con nosotros"],
   },
   {
     title: "Ayuda",
-    links: [
-      { label: "Preguntas frecuentes", href: "#" },
-      { label: "Soporte", href: "#" },
-    ],
+    items: ["Preguntas frecuentes", "Soporte"],
   },
   {
     title: "Legal",
-    links: [
-      { label: "Términos y condiciones", href: "#" },
-      { label: "Privacidad", href: "#" },
-    ],
+    items: ["Términos y condiciones", "Privacidad"],
   },
 ];
 
@@ -62,14 +48,9 @@ export function Footer({ className }: FooterProps) {
             </p>
             <div className="mt-4 flex items-center gap-3">
               {SOCIAL_LINKS.map(({ label, icon: Icon }) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  className="cursor-pointer text-muted-foreground transition-colors hover:text-primary"
-                >
+                <span key={label} role="img" aria-label={label} className="text-muted-foreground">
                   <Icon className="size-5" aria-hidden="true" />
-                </a>
+                </span>
               ))}
             </div>
           </div>
@@ -80,14 +61,9 @@ export function Footer({ className }: FooterProps) {
                 {column.title}
               </h3>
               <ul className="mt-4 space-y-2">
-                {column.links.map((link) => (
-                  <li key={link.label}>
-                    <a
-                      href={link.href}
-                      className="cursor-pointer text-sm text-muted-foreground transition-colors hover:text-primary"
-                    >
-                      {link.label}
-                    </a>
+                {column.items.map((item) => (
+                  <li key={item} className="text-sm text-muted-foreground">
+                    {item}
                   </li>
                 ))}
               </ul>

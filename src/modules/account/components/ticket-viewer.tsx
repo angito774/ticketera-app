@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { CalendarDays, ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Printer } from "lucide-react";
 
 import { formatDateBadge, formatLongDate, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ interface TicketViewerProps {
 }
 
 const PAGER_BUTTON_CLASSES =
-  "flex size-9 cursor-pointer items-center justify-center rounded-full border bg-background transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40";
+  "flex size-9 cursor-pointer items-center justify-center rounded-full border bg-background transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-40";
 const ACTION_CLASSES =
   "flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-foreground px-3 text-sm whitespace-nowrap font-semibold transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring";
 
@@ -45,7 +45,7 @@ export function TicketViewer({ order, event, className }: TicketViewerProps) {
       <div className="flex flex-col">
         {event && badge && (
           <div className="relative aspect-[16/8]">
-            <Image src={event.imageUrl} alt={event.title} fill sizes="(min-width: 1280px) 600px, 100vw" className="object-cover" />
+            <Image src={event.imageUrl} alt="" fill sizes="(min-width: 1280px) 600px, 100vw" className="object-cover" />
             <span className="absolute top-4 left-4 flex w-14 flex-col items-center rounded-xl bg-background py-1.5 leading-none shadow-sm">
               <span className="text-[0.6875rem] font-semibold text-primary">{badge.month}</span>
               <span className="text-xl font-bold">{badge.day}</span>
@@ -76,8 +76,10 @@ export function TicketViewer({ order, event, className }: TicketViewerProps) {
           <button
             type="button"
             aria-label="Entrada anterior"
-            disabled={index === 0}
-            onClick={() => setIndex((current) => current - 1)}
+            aria-disabled={index === 0}
+            onClick={() => {
+              if (index > 0) setIndex((current) => current - 1);
+            }}
             className={PAGER_BUTTON_CLASSES}
           >
             <ChevronLeft className="size-4" aria-hidden="true" />
@@ -88,8 +90,10 @@ export function TicketViewer({ order, event, className }: TicketViewerProps) {
           <button
             type="button"
             aria-label="Entrada siguiente"
-            disabled={index === total - 1}
-            onClick={() => setIndex((current) => current + 1)}
+            aria-disabled={index === total - 1}
+            onClick={() => {
+              if (index < total - 1) setIndex((current) => current + 1);
+            }}
             className={PAGER_BUTTON_CLASSES}
           >
             <ChevronRight className="size-4" aria-hidden="true" />
@@ -120,10 +124,8 @@ export function TicketViewer({ order, event, className }: TicketViewerProps) {
 
         <div className="flex w-full gap-2 print:hidden">
           <button type="button" onClick={() => window.print()} className={ACTION_CLASSES}>
-            <Download className="size-4.5" aria-hidden="true" />
-            <span>
-              <span className="sr-only">Descargar </span>PDF
-            </span>
+            <Printer className="size-4.5" aria-hidden="true" />
+            <span>Imprimir</span>
           </button>
           {event && <AddToCalendarButton order={order} event={event} label="Calendario" className={ACTION_CLASSES} />}
         </div>

@@ -17,7 +17,7 @@ interface OrderTicketCardProps {
 }
 
 const PAGER_BUTTON_CLASSES =
-  "flex size-9 cursor-pointer items-center justify-center rounded-full border bg-background transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40";
+  "flex size-9 cursor-pointer items-center justify-center rounded-full border bg-background transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring aria-disabled:cursor-not-allowed aria-disabled:opacity-40";
 
 const TICKET_STATUS_LABELS: Record<OrderTicketView["status"], string> = {
   valid: "Válida",
@@ -102,8 +102,10 @@ export function OrderTicketCard({ order, event, className }: OrderTicketCardProp
             <button
               type="button"
               aria-label="Entrada anterior"
-              disabled={index === 0}
-              onClick={() => setIndex((current) => current - 1)}
+              aria-disabled={index === 0}
+              onClick={() => {
+                if (index > 0) setIndex((current) => current - 1);
+              }}
               className={PAGER_BUTTON_CLASSES}
             >
               <ChevronLeft className="size-4" aria-hidden="true" />
@@ -116,8 +118,10 @@ export function OrderTicketCard({ order, event, className }: OrderTicketCardProp
             <button
               type="button"
               aria-label="Entrada siguiente"
-              disabled={index === total - 1}
-              onClick={() => setIndex((current) => current + 1)}
+              aria-disabled={index === total - 1}
+              onClick={() => {
+                if (index < total - 1) setIndex((current) => current + 1);
+              }}
               className={PAGER_BUTTON_CLASSES}
             >
               <ChevronRight className="size-4" aria-hidden="true" />

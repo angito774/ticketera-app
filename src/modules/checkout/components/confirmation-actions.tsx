@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Download } from "lucide-react";
+import { ArrowRight, Printer } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,8 +30,8 @@ export function ConfirmationActions({ order, event, className }: ConfirmationAct
       </Link>
       <AddToCalendarButton order={order} event={event} className={SECONDARY_CLASSES} />
       <button type="button" onClick={() => window.print()} className={SECONDARY_CLASSES}>
-        <Download className="size-4.5" aria-hidden="true" />
-        Descargar PDF
+        <Printer className="size-4.5" aria-hidden="true" />
+        Imprimir
       </button>
     </div>
   );

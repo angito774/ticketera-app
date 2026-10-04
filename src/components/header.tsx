@@ -37,7 +37,7 @@ export function Header({ className }: HeaderProps) {
             <Link
               key={link.label}
               href={link.href}
-              className="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-primary"
+              className="cursor-pointer rounded-md text-sm font-medium text-foreground outline-none transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring"
             >
               {link.label}
             </Link>
@@ -54,6 +54,22 @@ export function Header({ className }: HeaderProps) {
           <HeaderAccount />
         </div>
       </div>
+
+      {/* Móvil: las mismas categorías en una fila desplazable (en escritorio están arriba). */}
+      <nav aria-label="Categorías de eventos" className="border-t md:hidden">
+        <ul className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2">
+          {CATEGORY_LINKS.map((link) => (
+            <li key={link.label} className="shrink-0">
+              <Link
+                href={link.href}
+                className="flex h-11 items-center rounded-lg px-3 text-sm font-medium text-foreground outline-none transition-colors hover:text-primary focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </header>
   );
 }

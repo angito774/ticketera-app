@@ -44,7 +44,7 @@ No se probó en navegador ni con lector de pantalla; todo se verificó con ESLin
 
 - [ ] Recorrer la compra solo con teclado: mapa (6), contador (5) y "Continuar" (17)
 - [ ] Lector de pantalla: controles de orden (8, 9), resumen de errores (10) y carrusel (12)
-- [ ] Revisar a ojo los diálogos con títulos largos y el botón de cerrar (20)
-- [ ] Medir el contraste de las etiquetas pequeñas del mapa (9 a 10px), que no se midió
+- [x] Revisar a ojo los diálogos con títulos largos y el botón de cerrar (20)
+- [x] Medir el contraste de las etiquetas pequeñas del mapa (9 a 10px). Peor caso, con el degradado superior (mínimo AA 4.5): letras de fila 5.72 (`white/65`), nombre de zona agotada 4.75 sobre el rayado (`white/95`), precio agotado 8.66 sobre la píldora `brand-deep/80` (`white/75`). Calculado con composición alfa, no medido en pantalla; sin medir el número de asiento de 8px (`seat-map.tsx:244`). El texto de zonas atenuadas (`opacity-45`) queda fuera por ser estado inactivo
 - [ ] Decidir la suscripción del banner (16) hasta que exista un servicio
 - [ ] Decidir si "Imprimir" se queda o se genera un PDF real (15)

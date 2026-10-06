@@ -20,7 +20,7 @@ const TONE_CLASSES: Record<ZoneTone, ZoneToneClasses> = {
 /** Agotada: sin color de precio y con rayado (el patrón lo dibuja `VenueMap`). */
 const SOLD_OUT_CLASSES: ZoneToneClasses = {
   fill: "fill-white/10",
-  textFill: "fill-white/55",
+  textFill: "fill-white/95",
   swatch: "bg-border",
 };
 

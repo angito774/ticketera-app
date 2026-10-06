@@ -326,6 +326,20 @@ Una fila por entrada individual (por unidad de `order_items.quantity`); es la un
 
 Tabla de log/auditoría; no dispara nada por sí sola (el envío real lo hace un servicio aparte).
 
+### Marketing
+
+#### `newsletter_subscribers`
+
+Suscriptores al boletín (formulario del banner promocional, `docs/specs/events/newsletter-subscription.md`). **Entidad independiente**: no tiene FK a `users` ni a ninguna otra tabla, porque suscribirse no requiere cuenta; no aparece en el diagrama ER por no tener relaciones.
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | `uuid` PK default `gen_random_uuid()` | |
+| `email` | `text` unique, not null | siempre en minúsculas (`CHECK`); la unicidad evita suscripciones duplicadas |
+| `created_at` | `timestamptz` not null default `now()` | |
+
+Restricciones: `UNIQUE` `newsletter_subscribers_email_unique` sobre `email` y `CHECK` `newsletter_subscribers_email_lower_ck` (`email = lower(email)`). No guarda origen de la suscripción (sin columna `source`) ni `updated_at`. Creada por la migración `0002_cloudy_red_ghost`, que se aplica manualmente con `npm run db:migrate`.
+
 ## Enums (resumen)
 
 | Enum | Valores |
@@ -341,7 +355,7 @@ Tabla de log/auditoría; no dispara nada por sí sola (el envío real lo hace un
 
 ## Implementación (Drizzle)
 
-- **Schema**: `src/db/schema/` — `enums.ts`, `columns.ts` (helpers `createdAt`/`timestamps`), `identity.ts`, `venues.ts`, `events.ts`, `ticketing.ts`, `orders.ts`, `relations.ts`, reexportados en `index.ts`. Cliente `db` en `src/db/index.ts`.
+- **Schema**: `src/db/schema/` — `enums.ts`, `columns.ts` (helpers `createdAt`/`timestamps`), `identity.ts`, `venues.ts`, `events.ts`, `ticketing.ts`, `orders.ts`, `newsletter.ts`, `relations.ts`, reexportados en `index.ts`. Cliente `db` en `src/db/index.ts`.
 - **Convención**: camelCase en TypeScript, snake_case en Postgres (`casing: "snake_case"`).
 - **Migraciones**: `drizzle.config.ts` → carpeta `drizzle/`. Scripts: `npm run db:generate`, `db:migrate`, `db:push`, `db:studio`. Requiere `DATABASE_URL` en `.env`.
 - **Decisiones de implementación** (no definidas arriba):

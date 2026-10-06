@@ -1,13 +1,18 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Star } from "lucide-react";
 
 import { formatPrice, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { FeaturedToggle } from "@/modules/organizer/components/featured-toggle";
 import type { OrganizerEventRow } from "@/modules/events/types/event-list.types";
 
 interface OrganizerEventsListProps {
   events: OrganizerEventRow[];
+  canFeature: boolean;
   className?: string;
 }
 
@@ -29,10 +34,12 @@ function StatusBadge({ status }: { status: OrganizerEventRow["status"] }) {
 }
 
 function Thumbnail({ imageUrl }: { imageUrl: string | null }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = imageUrl !== null && imageUrl !== failedUrl;
   return (
     <span className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-accent text-primary">
-      {imageUrl ? (
-        <Image src={imageUrl} alt="" fill sizes="56px" className="object-cover" />
+      {showImage ? (
+        <Image src={imageUrl} alt="" fill sizes="56px" className="object-cover" onError={() => setFailedUrl(imageUrl)} />
       ) : (
         <ImageIcon className="size-5" aria-hidden="true" />
       )}
@@ -65,7 +72,7 @@ function SoldProgress({ event }: { event: OrganizerEventRow }) {
 }
 
 const ACTION_CLASSES =
-  "inline-flex h-11 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:h-9";
+  "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-lg border px-3 text-sm font-semibold transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:h-8 lg:px-2.5 lg:text-[0.8125rem]";
 
 function Action({ event }: { event: OrganizerEventRow }) {
   if (event.status === "published") {
@@ -86,7 +93,7 @@ function Action({ event }: { event: OrganizerEventRow }) {
 }
 
 /** Eventos del organizador: tabla en escritorio, tarjetas en móvil. */
-export function OrganizerEventsList({ events, className }: OrganizerEventsListProps) {
+export function OrganizerEventsList({ events, canFeature, className }: OrganizerEventsListProps) {
   return (
     <div className={className}>
       <div
@@ -112,6 +119,16 @@ export function OrganizerEventsList({ events, className }: OrganizerEventsListPr
                 <span className="text-[0.8125rem] text-muted-foreground">
                   {formatShortDate(event.startsAt)} · {event.city}
                 </span>
+                {canFeature && event.status !== "cancelled" ? (
+                  <FeaturedToggle eventId={event.id} title={event.title} featured={event.featured} />
+                ) : (
+                  event.featured && (
+                    <span className="inline-flex items-center gap-1 text-[0.8125rem] font-medium text-muted-foreground">
+                      <Star className="size-3.5 fill-current text-primary" aria-hidden="true" />
+                      Destacado
+                    </span>
+                  )
+                )}
               </span>
               <span className="ml-auto lg:hidden">
                 <StatusBadge status={event.status} />

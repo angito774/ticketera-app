@@ -62,6 +62,7 @@ export async function getEventForEdit(
       venueId: event.venueId,
       coverImageUrl: event.coverImageUrl ?? "",
       organizationId: event.organizationId,
+      featured: event.featured,
       tiers: buildTierValues(zones, types),
     },
   };

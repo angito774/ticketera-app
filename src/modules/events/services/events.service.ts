@@ -110,7 +110,7 @@ const EVENTS: Event[] = [
     city: "Arequipa",
     price: 130,
     imageUrl:
-      "https://images.unsplash.com/photo-1528822855841-e8bf2075f28d?w=800&q=80",
+      "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&q=80",
     featured: false,
   },
   {

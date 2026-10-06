@@ -28,6 +28,7 @@ import {
   draftGuardSql,
   nextSlug,
   requireEventColumns,
+  resolveFeatured,
   type TicketTypeRow,
   type ZoneInfo,
 } from "@/modules/organizer/services/event-write.mapping";
@@ -136,6 +137,7 @@ export async function createEvent(
     const zones = await loadZones(input, input.organizationId);
     if (input.mode === "publish") assertPublishable(input, zones);
 
+    const featured = resolveFeatured(can(actor, "events:feature"), input.featured);
     const eventId = randomUUID();
     const tierRows = buildTicketTypeRows({
       mode: input.mode,
@@ -162,6 +164,7 @@ export async function createEvent(
           coverImageUrl: input.coverImageUrl,
           startsAt: columns.startsAt,
           status: "draft",
+          ...featured,
         }),
         ...tierStmts,
       ];
@@ -179,6 +182,23 @@ export async function createEvent(
     }
     throw new AdminError(DUPLICATE_TITLE);
   });
+}
+
+export async function setEventFeatured(
+  actor: CurrentUser,
+  id: string,
+  featured: boolean,
+): Promise<void> {
+  if (!can(actor, "events:feature")) throw new AdminError("Sin permiso");
+  const current = await db.query.events.findFirst({
+    columns: { status: true },
+    where: eq(events.id, id),
+  });
+  if (!current) throw new AdminError(NOT_FOUND);
+  if (current.status === "cancelled") {
+    throw new AdminError("No se puede destacar un evento cancelado");
+  }
+  await db.update(events).set({ featured }).where(eq(events.id, id));
 }
 
 export async function updateEvent(
@@ -200,6 +220,8 @@ export async function updateEvent(
     throw new AdminError("No se puede editar un evento cancelado");
   }
 
+  const featured = resolveFeatured(can(actor, "events:feature"), input.featured);
+
   await translate(async () => {
     if (current.status === "published") {
       assertPublishedText(input);
@@ -210,6 +232,7 @@ export async function updateEvent(
             title: input.title.trim(),
             description: input.description,
             coverImageUrl: input.coverImageUrl,
+            ...featured,
           })
           .where(and(eq(events.id, id), eq(events.status, "published"))),
       ]);
@@ -238,6 +261,7 @@ export async function updateEvent(
           startsAt: columns.startsAt,
           venueId: columns.venueId,
           coverImageUrl: input.coverImageUrl,
+          ...featured,
         })
         .where(and(eq(events.id, id), eq(events.status, "draft"))),
       db.delete(ticketTypes).where(eq(ticketTypes.eventId, id)),

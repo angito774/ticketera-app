@@ -33,11 +33,11 @@ function EventFilterBar({ className }: EventFilterBarProps) {
         type="search"
         name="q"
         placeholder="Buscar por nombre, artista o venue..."
-        className="h-11 flex-1"
+        className="h-11 flex-1 md:h-10"
         aria-label="Buscar eventos"
       />
       <Select name="category" defaultValue="all" items={CATEGORY_SELECT_ITEMS}>
-        <SelectTrigger className="h-11 w-full sm:w-56" aria-label="Filtrar por categoría">
+        <SelectTrigger className="h-11 w-full sm:w-56 md:h-10" aria-label="Filtrar por categoría">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +49,7 @@ function EventFilterBar({ className }: EventFilterBarProps) {
           ))}
         </SelectContent>
       </Select>
-      <Button type="submit" className="h-11 px-5">
+      <Button type="submit" className="h-11 px-5 md:h-10">
         Buscar
       </Button>
     </Form>

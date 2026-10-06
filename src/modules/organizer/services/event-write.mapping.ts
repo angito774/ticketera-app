@@ -31,6 +31,14 @@ export interface TicketTypeRow {
   quantityTotal: number | null;
 }
 
+/** `{}` = no tocar la columna: sin permiso el valor enviado se ignora. */
+export function resolveFeatured(
+  canFeature: boolean,
+  requested: boolean | undefined,
+): { featured: boolean } | Record<string, never> {
+  return canFeature && requested !== undefined ? { featured: requested } : {};
+}
+
 export function nextSlug(base: string, taken: string[]): string {
   const root = base || "evento";
   const used = new Set(taken);

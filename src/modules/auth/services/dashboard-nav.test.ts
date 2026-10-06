@@ -32,15 +32,14 @@ const labels = (subject: AuthSubject) =>
   getNavSections(subject).flatMap((s) => s.items.map((i) => i.label));
 
 describe("getNavSections", () => {
-  it("shows an organizer the overview and event creation only", () => {
-    expect(labels(organizer)).toEqual(["Resumen", "Crear evento"]);
+  it("shows an organizer the events entry only", () => {
+    expect(labels(organizer)).toEqual(["Eventos"]);
   });
 
   it("adds the administration section without Roles for admin", () => {
     const adminSection = getNavSections(admin).at(-1);
     expect(labels(admin)).toEqual([
-      "Resumen",
-      "Crear evento",
+      "Eventos",
       "Organizaciones",
       "Usuarios",
       "Clientes",
@@ -62,8 +61,7 @@ describe("getNavSections", () => {
 
   it("adds Roles only for super admin", () => {
     expect(labels(superAdmin)).toEqual([
-      "Resumen",
-      "Crear evento",
+      "Eventos",
       "Organizaciones",
       "Usuarios",
       "Clientes",
@@ -79,15 +77,11 @@ describe("getNavSections", () => {
     expect(labels(organizer)).not.toContain("Clientes");
   });
 
-  it("matches the overview by exact path and event creation by prefix", () => {
-    const [overview, events] = getNavSections(organizer);
-    expect(overview.items[0]).toMatchObject({
+  it("keeps Eventos active on the list and on its sub-routes", () => {
+    const [events] = getNavSections(organizer);
+    expect(events.items[0]).toMatchObject({
       href: "/organizer",
       icon: "dashboard",
-    });
-    expect(overview.items[0].matchPrefix).toBeUndefined();
-    expect(events.items[0]).toMatchObject({
-      href: "/organizer/events/new",
       matchPrefix: "/organizer/events",
     });
   });

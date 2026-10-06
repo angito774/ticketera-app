@@ -30,6 +30,7 @@ const VALID: EventFormValues = {
   venueId: VEN,
   coverImageUrl: "",
   organizationId: ORG,
+  featured: false,
   tiers: [
     { zoneId: Z_GEN, enabled: true, price: "120", quantity: "3000" },
     { zoneId: Z_NUM, enabled: true, price: "250.5", quantity: "" },
@@ -211,6 +212,7 @@ describe("toEventSaveInput", () => {
       startsAt: "2026-12-20T18:30:00-05:00",
       venueId: VEN,
       coverImageUrl: null,
+      featured: false,
       tiers: [
         { zoneId: Z_GEN, priceCents: 1005, quantity: 300 },
         { zoneId: Z_X, priceCents: 105, quantity: null },
@@ -336,6 +338,14 @@ describe("eventSaveSchema", () => {
     expect(eventSaveSchema.safeParse(one({ priceCents: 2_147_483_647 })).success).toBe(true);
     expect(eventSaveSchema.safeParse(one({ priceCents: 2_147_483_648 })).success).toBe(false);
     expect(eventSaveSchema.safeParse(one({ quantity: 2_147_483_648 })).success).toBe(false);
+  });
+
+  it("sends featured always and accepts it as optional boolean", () => {
+    expect(EMPTY_EVENT_FORM.featured).toBe(false);
+    expect(toEventSaveInput({ ...VALID, featured: true }, "publish", ZONES).featured).toBe(true);
+    expect(eventSaveSchema.safeParse({ ...publish(), featured: true }).success).toBe(true);
+    expect(eventSaveSchema.safeParse({ ...publish(), featured: undefined }).success).toBe(true);
+    expect(eventSaveSchema.safeParse({ ...publish(), featured: "yes" }).success).toBe(false);
   });
 
   it("requires title of 3 chars and a non-empty organization", () => {

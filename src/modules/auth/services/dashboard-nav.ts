@@ -27,14 +27,12 @@ export const ROLE_LABEL: Record<AppRole, string> = {
 
 export function getNavSections(subject: AuthSubject): NavSection[] {
   const sections: NavSection[] = [
-    { items: [{ href: "/organizer", label: "Resumen", icon: "dashboard" }] },
     {
-      title: "Eventos",
       items: [
         {
-          href: "/organizer/events/new",
-          label: "Crear evento",
-          icon: "plus",
+          href: "/organizer",
+          label: "Eventos",
+          icon: "dashboard",
           matchPrefix: "/organizer/events",
         },
       ],

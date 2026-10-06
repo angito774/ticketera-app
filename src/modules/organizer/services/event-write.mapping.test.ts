@@ -14,8 +14,25 @@ import {
   draftGuardSql,
   nextSlug,
   requireEventColumns,
+  resolveFeatured,
   type ZoneInfo,
 } from "@/modules/organizer/services/event-write.mapping";
+
+describe("resolveFeatured", () => {
+  it("persiste el valor solo si el actor puede destacar", () => {
+    expect(resolveFeatured(true, true)).toEqual({ featured: true });
+    expect(resolveFeatured(true, false)).toEqual({ featured: false });
+  });
+
+  it("ignora el valor sin permiso", () => {
+    expect(resolveFeatured(false, true)).toEqual({});
+    expect(resolveFeatured(false, false)).toEqual({});
+  });
+
+  it("no toca la columna si no se envía", () => {
+    expect(resolveFeatured(true, undefined)).toEqual({});
+  });
+});
 
 const NOW = new Date("2026-10-02T12:00:00Z");
 const zones: ZoneInfo[] = [

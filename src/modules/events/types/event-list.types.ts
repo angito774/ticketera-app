@@ -20,6 +20,7 @@ export interface OrganizerEventRow {
   id: string;
   slug: string;
   status: "draft" | "published" | "cancelled";
+  featured: boolean;
   title: string;
   category: EventCategory | null;
   description: string | null;

@@ -6,6 +6,7 @@ export type Permission =
   | "roles:manage"
   | "members:manage"
   | "events:manage"
+  | "events:feature"
   | "tickets:redeem";
 
 export const ASSIGNABLE_PERMISSIONS = [

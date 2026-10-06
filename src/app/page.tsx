@@ -14,7 +14,7 @@ import {
   parseEventListParams,
   type EventListParams,
 } from "@/modules/events/schemas/event-list.schema";
-import { listPublicEvents } from "@/modules/events/services/event-list.service";
+import { listHeroEvents, listPublicEvents } from "@/modules/events/services/event-list.service";
 
 type PublicParams = EventListParams & { scope: "public" };
 
@@ -33,14 +33,15 @@ const ALL_PARAMS = publicParams({});
 
 export default async function Home() {
   const queryClient = getQueryClient();
-  await Promise.all(
-    [FEATURED_PARAMS, CONCERT_PARAMS, THEATER_PARAMS, ALL_PARAMS].map((params) =>
+  const [heroEvents] = await Promise.all([
+    listHeroEvents(),
+    ...[FEATURED_PARAMS, CONCERT_PARAMS, THEATER_PARAMS, ALL_PARAMS].map((params) =>
       queryClient.prefetchQuery({
         queryKey: eventListKey(params),
         queryFn: () => listPublicEvents(params),
       }),
     ),
-  );
+  ]);
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
@@ -48,7 +49,7 @@ export default async function Home() {
         <Header />
 
         <main className="flex flex-1 flex-col">
-          <Hero />
+          <Hero featuredEvents={heroEvents} />
 
           <div className="flex flex-wrap justify-center gap-3 px-4 py-8 md:px-6 lg:px-8">
             <CategoryPill label="Conciertos" value="concert" />

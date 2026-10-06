@@ -50,6 +50,7 @@ import type {
 } from "@/modules/events/types/event-list.types";
 import {
   EVENT_CATEGORY_LABELS,
+  type Event,
   type EventCategory,
 } from "@/modules/events/types/event.types";
 
@@ -140,7 +141,38 @@ export async function listPublicEvents(params: EventListParams): Promise<PublicE
   return { events: rows.map(mapPublicEvent), total, page, pageCount: pages };
 }
 
-const EMPTY_SUMMARY: OrganizerSummary = { sold: 0, revenue: 0, published: 0, total: 0 };
+export const HERO_MAX_EVENTS = 6;
+
+export async function listHeroEvents(): Promise<Event[]> {
+  const rows = await db
+    .select({
+      slug: events.slug,
+      title: events.title,
+      categorySlug: categories.slug,
+      startsAt: events.startsAt,
+      venueName: venues.name,
+      city: venues.city,
+      minPriceCents: MIN_PRICE_CENTS,
+      coverImageUrl: events.coverImageUrl,
+      featured: events.featured,
+    })
+    .from(events)
+    .innerJoin(venues, eq(events.venueId, venues.id))
+    .innerJoin(categories, eq(events.categoryId, categories.id))
+    .where(
+      and(
+        eq(events.status, "published"),
+        eq(events.featured, true),
+        gte(events.startsAt, sql`now()`),
+      ),
+    )
+    .orderBy(asc(events.startsAt), asc(events.id))
+    .limit(HERO_MAX_EVENTS);
+
+  return rows.map(mapPublicEvent);
+}
+
+const EMPTY_SUMMARY:OrganizerSummary = { sold: 0, revenue: 0, published: 0, total: 0 };
 
 export async function listOrganizerEvents(
   actor: CurrentUser | null,
@@ -190,6 +222,7 @@ export async function listOrganizerEvents(
       venueName: venues.name,
       city: venues.city,
       imageUrl: events.coverImageUrl,
+      featured: events.featured,
     })
     .from(events)
     .innerJoin(venues, eq(events.venueId, venues.id))
@@ -221,6 +254,7 @@ export async function listOrganizerEvents(
       venue: row.venueName,
       city: row.city,
       imageUrl: row.imageUrl,
+      featured: row.featured,
       tiers,
       ...totals,
     };

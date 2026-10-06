@@ -4,7 +4,7 @@ import {
 } from "@/modules/events/schemas/event-filters.schema";
 
 export type EventListScope = "public" | "organizer";
-export type EventListStatus = "all" | "published" | "draft";
+export type EventListStatus = "all" | "published" | "draft" | "cancelled";
 
 export const MAX_PAGE_SIZE = 50;
 
@@ -35,7 +35,8 @@ export function parseEventListParams(raw: RawParams): EventListParams {
   const scope: EventListScope = first(raw.scope) === "organizer" ? "organizer" : "public";
   const statusRaw = first(raw.status);
   const status: EventListStatus =
-    scope === "organizer" && (statusRaw === "published" || statusRaw === "draft")
+    scope === "organizer" &&
+    (statusRaw === "published" || statusRaw === "draft" || statusRaw === "cancelled")
       ? statusRaw
       : "all";
   const organizationId =

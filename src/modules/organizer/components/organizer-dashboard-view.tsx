@@ -25,6 +25,7 @@ const FILTERS: { key: EventListStatus; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "published", label: "Publicados" },
   { key: "draft", label: "Borradores" },
+  { key: "cancelled", label: "Cancelados" },
 ];
 
 const NOTICE_TEXT: Record<Exclude<SaveNotice, null>, string> = {
@@ -142,7 +143,7 @@ export function OrganizerDashboardView({ notice, canFeature }: OrganizerDashboar
             fromDate={dateFrom ? parse(dateFrom, "yyyy-MM-dd", new Date()) : undefined}
             className="sm:w-44"
           />
-          <div className="grid w-full grid-cols-3 rounded-xl bg-muted p-1 sm:w-auto lg:bg-background lg:ring-1 lg:ring-border">
+          <div className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-xl bg-muted p-1 sm:w-auto lg:bg-background lg:ring-1 lg:ring-border">
             {FILTERS.map((item) => (
               <button
                 key={item.key}

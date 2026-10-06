@@ -40,11 +40,11 @@ Se corrigieron los 20 puntos de la revisión de accesibilidad; ESLint y tsc pasa
 
 ## Pendientes y verificación
 
-No se probó en navegador ni con lector de pantalla; todo se verificó con ESLint, tsc y pruebas.
+Lo demás se verificó con ESLint, tsc y pruebas; el recorrido con teclado se probó en navegador (ver abajo); falta el lector de pantalla.
 
-- [ ] Recorrer la compra solo con teclado: mapa (6), contador (5) y "Continuar" (17)
+- [x] Recorrer la compra solo con teclado: mapa (6), contador (5) y "Continuar" (17). Aprobado el 2026-10-06 en el navegador (`concert-05` y `concert-01`): una sola parada de Tab y flechas en el mapa, tope de 6 por zona en el contador, "Continuar" deshabilitado con su motivo enlazado. Parte con eventos de teclado simulados; sin probar el avance real hasta el checkout ni los eventos de teatro
 - [ ] Lector de pantalla: controles de orden (8, 9), resumen de errores (10) y carrusel (12)
 - [x] Revisar a ojo los diálogos con títulos largos y el botón de cerrar (20)
 - [x] Medir el contraste de las etiquetas pequeñas del mapa (9 a 10px). Peor caso, con el degradado superior (mínimo AA 4.5): letras de fila 5.72 (`white/65`), nombre de zona agotada 4.75 sobre el rayado (`white/95`), precio agotado 8.66 sobre la píldora `brand-deep/80` (`white/75`). Calculado con composición alfa, no medido en pantalla; sin medir el número de asiento de 8px (`seat-map.tsx:244`). El texto de zonas atenuadas (`opacity-45`) queda fuera por ser estado inactivo
 - [x] Decidir la suscripción del banner (16): se implementó la suscripción real (docs/specs/events/newsletter-subscription.md); falta aplicar la migración en Neon
-- [ ] Decidir si "Imprimir" se queda o se genera un PDF real (15)
+- [x] Decidir si "Imprimir" se queda o se genera un PDF real (15): se queda "Imprimir"; el usuario puede elegir "Guardar como PDF" en el diálogo de impresión

@@ -59,7 +59,12 @@ function Hero({
         </div>
       </div>
       {featuredEvents.length > 0 && (
-        <HeroCarousel events={featuredEvents} className="mt-12 md:mt-16" />
+        <div className="mx-auto mt-12 max-w-7xl px-4 md:mt-16 md:px-6 lg:px-8">
+          <HeroCarousel
+            events={featuredEvents}
+            className="overflow-hidden rounded-2xl"
+          />
+        </div>
       )}
     </section>
   )

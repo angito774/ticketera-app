@@ -141,7 +141,7 @@ export async function listPublicEvents(params: EventListParams): Promise<PublicE
   return { events: rows.map(mapPublicEvent), total, page, pageCount: pages };
 }
 
-export const HERO_MAX_EVENTS = 6;
+export const HERO_MAX_EVENTS = 5;
 
 export async function listHeroEvents(): Promise<Event[]> {
   const rows = await db

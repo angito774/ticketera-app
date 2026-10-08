@@ -24,25 +24,25 @@ describe("Footer", () => {
     }
   });
 
-  it("renders only Privacidad as a link", () => {
+  it("renders only Política de privacidad as a link", () => {
     render(<Footer />);
 
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Privacidad" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Política de privacidad" })).toHaveAttribute(
       "href",
       "/privacidad",
     );
   });
 
-  it("renders the copyright with the current year and no cookie notice", () => {
+  it("renders the copyright with the current year and no cookie banner text", () => {
     render(<Footer />);
 
     const year = new Date().getFullYear();
     expect(
       screen.getByText(`© ${year} Ticketera. Todos los derechos reservados.`),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/cookie/i)).toBeNull();
+    expect(screen.queryByText(/solo usamos cookies/i)).toBeNull();
   });
 
   it("keeps the original light muted background", () => {

@@ -30,13 +30,15 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   },
   {
     title: "Ayuda",
-    items: [{ label: "Preguntas frecuentes" }, { label: "Soporte" }],
+    items: [{ label: "Centro de ayuda" }],
   },
   {
     title: "Legal",
     items: [
       { label: "Términos y condiciones" },
-      { label: "Privacidad", href: "/privacidad" },
+      { label: "Política de privacidad", href: "/privacidad" },
+      { label: "Política de cookies" },
+      { label: "Garantía y devoluciones" },
     ],
   },
 ];

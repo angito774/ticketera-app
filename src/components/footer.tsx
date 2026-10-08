@@ -1,3 +1,4 @@
+import { BookOpen } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -110,9 +111,18 @@ export function Footer({ className }: FooterProps) {
 
         <Separator className="my-8 bg-indigo-200" />
 
-        <p className="text-center text-sm text-muted-foreground sm:text-left">
-          © {year} Ticketera. Todos los derechos reservados.
-        </p>
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+          <p className="text-center text-sm text-muted-foreground sm:text-left">
+            © {year} Ticketera. Todos los derechos reservados.
+          </p>
+          <Link
+            href="/libro-de-reclamaciones"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-indigo-200 px-4 text-sm font-medium text-foreground hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <BookOpen className="size-4" aria-hidden="true" />
+            Libro de Reclamaciones
+          </Link>
+        </div>
       </div>
     </footer>
   );

@@ -1,7 +1,7 @@
 # Libro de Reclamaciones virtual
 
-**Estado**: draft
-**Aprobado por**: —
+**Estado**: approved
+**Aprobado por**: Nelson (usuario), 2026-10-07 (aprueba implementar y generar el archivo de migración; NO autoriza aplicar la migración a la base)
 **Fase**: 1 de 2
 
 ## Contexto

@@ -24,19 +24,28 @@ describe("Footer", () => {
     }
   });
 
-  it("renders the four legal items as links with their hrefs", () => {
+  it("renders the five links with their hrefs", () => {
     render(<Footer />);
 
-    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getAllByRole("link")).toHaveLength(5);
     const expected = {
       "Términos y condiciones": "/terminos",
       "Política de privacidad": "/privacidad",
       "Política de cookies": "/cookies",
       "Garantía y devoluciones": "/devoluciones",
+      "Libro de Reclamaciones": "/libro-de-reclamaciones",
     };
     for (const [name, href] of Object.entries(expected)) {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }
+  });
+
+  it("renders the complaints book link with a hidden icon and a 44px target", () => {
+    render(<Footer />);
+
+    const link = screen.getByRole("link", { name: "Libro de Reclamaciones" });
+    expect(link).toHaveClass("min-h-11");
+    expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("keeps Centro de ayuda and social networks out of the links", () => {

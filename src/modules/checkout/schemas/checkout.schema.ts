@@ -18,7 +18,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "PagoEfectivo",
 };
 
-const DOCUMENT_RULES: Record<DocumentType, { pattern: RegExp; message: string }> = {
+export const DOCUMENT_RULES: Record<DocumentType, { pattern: RegExp; message: string }> = {
   DNI: { pattern: /^\d{8}$/, message: "El DNI tiene 8 dígitos." },
   CE: { pattern: /^\d{9}$/, message: "El CE tiene 9 dígitos." },
   PASSPORT: { pattern: /^[A-Za-z0-9]{6,12}$/, message: "Ingresa entre 6 y 12 letras o números." },

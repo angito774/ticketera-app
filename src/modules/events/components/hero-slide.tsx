@@ -23,7 +23,7 @@ function HeroSlide({ event, index, total, active }: HeroSlideProps) {
       inert={!active}
       aria-hidden={active ? undefined : true}
     >
-      <div className="relative h-[620px] w-full overflow-hidden bg-neutral-900 min-[860px]:h-[600px]">
+      <div className="relative h-[560px] w-full overflow-hidden bg-neutral-900 min-[860px]:h-[463px]">
         <Image
           src={event.imageUrl}
           alt=""
@@ -34,11 +34,11 @@ function HeroSlide({ event, index, total, active }: HeroSlideProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 via-60% to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 px-5 pb-32 text-left text-white min-[860px]:max-w-[60%] min-[860px]:px-10 min-[860px]:pb-20">
+        <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-3 px-5 pb-32 text-left text-white min-[860px]:max-w-[60%] min-[860px]:px-10 min-[860px]:pb-14">
           <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold tracking-wide text-primary-foreground uppercase">
             {EVENT_CATEGORY_LABELS[event.category].singular}
           </span>
-          <h2 className="font-heading text-3xl leading-tight font-bold text-balance min-[860px]:text-5xl">
+          <h2 className="line-clamp-2 font-heading text-3xl leading-tight font-bold text-balance min-[860px]:text-5xl lg:text-6xl">
             {event.title}
           </h2>
           <p className="text-sm text-white sm:text-base">

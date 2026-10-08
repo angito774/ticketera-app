@@ -59,6 +59,16 @@ describe("HeroSlide", () => {
     expect(slide).toHaveAttribute("aria-label", "2 de 3")
   })
 
+  it("usa alto fijo de 463px en desktop y título hasta lg:text-6xl", () => {
+    const { container } = render(
+      <HeroSlide event={event} index={0} total={3} active />
+    )
+    expect(container.querySelector(".min-\\[860px\\]\\:h-\\[463px\\]")).not.toBeNull()
+    // El título se limita a 2 líneas: con más, el bloque anclado abajo se recorta por arriba en 463px.
+    expect(screen.getByRole("heading", { level: 2 })).toHaveClass("lg:text-6xl", "line-clamp-2")
+    expect(screen.getByText("Concierto")).toHaveClass("text-xs")
+  })
+
   it("inactiva: inert y aria-hidden", () => {
     const { container } = render(
       <HeroSlide event={event} index={1} total={3} active={false} />

@@ -1,4 +1,5 @@
 import { Camera, Share2, X } from "lucide-react";
+import Link from "next/link";
 
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -7,24 +8,36 @@ interface FooterProps {
   className?: string;
 }
 
+interface FooterItem {
+  label: string;
+  /** Solo si el destino existe hoy; sin href se renderiza como texto. */
+  href?: string;
+}
+
 interface FooterColumn {
   title: string;
-  /** Texto de las secciones; sin destino todavía, así que no son enlaces. */
-  items: string[];
+  items: FooterItem[];
 }
 
 const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Empresa",
-    items: ["Sobre nosotros", "Contacto", "Trabaja con nosotros"],
+    items: [
+      { label: "Sobre nosotros" },
+      { label: "Contacto" },
+      { label: "Trabaja con nosotros" },
+    ],
   },
   {
     title: "Ayuda",
-    items: ["Preguntas frecuentes", "Soporte"],
+    items: [{ label: "Preguntas frecuentes" }, { label: "Soporte" }],
   },
   {
     title: "Legal",
-    items: ["Términos y condiciones", "Privacidad"],
+    items: [
+      { label: "Términos y condiciones" },
+      { label: "Privacidad", href: "/privacidad" },
+    ],
   },
 ];
 
@@ -38,17 +51,24 @@ export function Footer({ className }: FooterProps) {
   const year = new Date().getFullYear();
 
   return (
-    <footer className={cn("border-t border-border bg-muted/30", className)}>
+    <footer
+      className={cn("border-t border-white/10 bg-brand-deep text-white/70", className)}
+    >
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div>
-            <span className="text-xl font-bold text-primary">Ticketera</span>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <span className="text-xl font-bold text-white">Ticketera</span>
+            <p className="mt-2 text-sm text-white/70">
               Descubre y compra entradas para los mejores eventos del Perú.
             </p>
             <div className="mt-4 flex items-center gap-3">
               {SOCIAL_LINKS.map(({ label, icon: Icon }) => (
-                <span key={label} role="img" aria-label={label} className="text-muted-foreground">
+                <span
+                  key={label}
+                  role="img"
+                  aria-label={label}
+                  className="flex size-10 items-center justify-center rounded-lg bg-white/10 text-white/70"
+                >
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
               ))}
@@ -57,13 +77,22 @@ export function Footer({ className }: FooterProps) {
 
           {FOOTER_COLUMNS.map((column) => (
             <div key={column.title}>
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
                 {column.title}
               </h3>
               <ul className="mt-4 space-y-2">
                 {column.items.map((item) => (
-                  <li key={item} className="text-sm text-muted-foreground">
-                    {item}
+                  <li key={item.label} className="text-sm text-white/70">
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        className="rounded-sm hover:text-white hover:underline focus-visible:text-white focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                      >
+                        {item.label}
+                      </Link>
+                    ) : (
+                      item.label
+                    )}
                   </li>
                 ))}
               </ul>
@@ -71,9 +100,9 @@ export function Footer({ className }: FooterProps) {
           ))}
         </div>
 
-        <Separator className="my-8" />
+        <Separator className="my-8 bg-white/10" />
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-white/70 sm:text-left">
           © {year} Ticketera. Todos los derechos reservados.
         </p>
       </div>

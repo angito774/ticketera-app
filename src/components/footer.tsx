@@ -52,13 +52,13 @@ export function Footer({ className }: FooterProps) {
 
   return (
     <footer
-      className={cn("border-t border-white/10 bg-brand-deep text-white/70", className)}
+      className={cn("border-t border-border bg-muted/30", className)}
     >
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
           <div>
-            <span className="text-xl font-bold text-white">Ticketera</span>
-            <p className="mt-2 text-sm text-white/70">
+            <span className="text-xl font-bold text-primary">Ticketera</span>
+            <p className="mt-2 text-sm text-muted-foreground">
               Descubre y compra entradas para los mejores eventos del Perú.
             </p>
             <div className="mt-4 flex items-center gap-3">
@@ -67,7 +67,7 @@ export function Footer({ className }: FooterProps) {
                   key={label}
                   role="img"
                   aria-label={label}
-                  className="flex size-10 items-center justify-center rounded-lg bg-white/10 text-white/70"
+                  className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground"
                 >
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
@@ -77,16 +77,16 @@ export function Footer({ className }: FooterProps) {
 
           {FOOTER_COLUMNS.map((column) => (
             <div key={column.title}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground">
                 {column.title}
               </h3>
               <ul className="mt-4 space-y-2">
                 {column.items.map((item) => (
-                  <li key={item.label} className="text-sm text-white/70">
+                  <li key={item.label} className="text-sm text-muted-foreground">
                     {item.href ? (
                       <Link
                         href={item.href}
-                        className="rounded-sm hover:text-white hover:underline focus-visible:text-white focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        className="rounded-sm hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {item.label}
                       </Link>
@@ -100,9 +100,9 @@ export function Footer({ className }: FooterProps) {
           ))}
         </div>
 
-        <Separator className="my-8 bg-white/10" />
+        <Separator className="my-8" />
 
-        <p className="text-center text-sm text-white/70 sm:text-left">
+        <p className="text-center text-sm text-muted-foreground sm:text-left">
           © {year} Ticketera. Todos los derechos reservados.
         </p>
       </div>

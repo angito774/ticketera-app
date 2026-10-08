@@ -140,6 +140,6 @@ Al cierre: proyecto compilando, lint y tests pasando (AC-20). Verificación visu
 
 ## Decisiones resueltas
 
-1. **Color del footer**: `bg-brand-deep`, sin token nuevo. Confirmado por el usuario.
+1. **Color del footer**: ~~`bg-brand-deep`~~ **revisado (2026-10-07): se mantiene el color original claro** (`bg-muted/30`, texto `text-muted-foreground`, marca `text-primary`). Esto sustituye los criterios AC-12 y AC-13 sobre fondo oscuro y contraste `text-white/70`; el resto del rediseño del footer (layout 2/4 columnas, redes, enlace a `/privacidad`, copyright) se mantiene. Decisión del usuario.
 2. **Aviso de cookies**: se omite. Confirmado por el usuario.
 3. **Titular con acento**: "cerca de ti" vía `headlineAccent` (supuesto de la spec; el usuario aprobó lanzar la implementación sin objetarlo).

@@ -9,7 +9,7 @@ describe("Footer", () => {
 
     for (const title of ["Empresa", "Ayuda", "Legal"]) {
       const heading = screen.getByRole("heading", { level: 3, name: title });
-      expect(heading).toHaveClass("text-xs", "uppercase", "tracking-wider", "text-white");
+      expect(heading).toHaveClass("text-xs", "uppercase", "tracking-wider", "text-foreground");
     }
   });
 
@@ -45,9 +45,9 @@ describe("Footer", () => {
     expect(screen.queryByText(/cookie/i)).toBeNull();
   });
 
-  it("uses the dark brand background", () => {
+  it("keeps the original light muted background", () => {
     render(<Footer className="extra" />);
 
-    expect(screen.getByRole("contentinfo")).toHaveClass("bg-brand-deep", "extra");
+    expect(screen.getByRole("contentinfo")).toHaveClass("bg-muted/30", "extra");
   });
 });

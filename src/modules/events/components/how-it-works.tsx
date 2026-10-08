@@ -1,4 +1,4 @@
-import { CreditCard, Search, Ticket, type LucideIcon } from "lucide-react"
+import { CircleCheck, Search, Ticket, type LucideIcon } from "lucide-react"
 
 import { PageSection } from "@/components/page-section"
 
@@ -22,7 +22,7 @@ const STEPS: HowItWorksStep[] = [
   {
     title: "Comprar",
     text: "Confirma tu compra y encuentra tus entradas al instante en Mis entradas.",
-    icon: CreditCard,
+    icon: CircleCheck,
   },
 ]
 

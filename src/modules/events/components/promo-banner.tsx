@@ -76,71 +76,71 @@ function PromoBanner({
       className={cn(PAGE_SECTION_CLASSES, className)}
     >
       <div className="rounded-3xl bg-surface-warm px-6 py-12 text-center md:px-12">
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-6">
-        <h2
-          id={headingId}
-          className="text-3xl font-bold text-foreground md:text-4xl"
-        >
-          {title}
-        </h2>
-        <p className="text-base text-muted-foreground md:text-lg">
-          {subtitle}
-        </p>
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="flex w-full max-w-xl flex-col gap-2 sm:flex-row"
-        >
-          <label htmlFor={inputId} className="sr-only">
-            Correo electrónico
-          </label>
-          <Input
-            ref={inputRef}
-            id={inputId}
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            placeholder="tu@email.com"
-            className="h-11 flex-1"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={error?.field ? true : undefined}
-            aria-describedby={error ? errorId : undefined}
-          />
-          <Button
-            type="submit"
-            variant="default"
-            size="lg"
-            className="h-11 cursor-pointer"
-            aria-disabled={isPending}
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6">
+          <h2
+            id={headingId}
+            className="text-3xl font-bold text-foreground md:text-4xl"
           >
-            {isPending ? "Suscribiendo…" : "Suscribirse"}
-          </Button>
-        </form>
-        {error && (
-          <p id={errorId} role="alert" className="text-sm text-destructive">
-            {error.message}
+            {title}
+          </h2>
+          <p className="text-base text-muted-foreground md:text-lg">
+            {subtitle}
           </p>
-        )}
-        <p
-          role="status"
-          className={cn("text-sm text-muted-foreground", !status && "sr-only")}
-        >
-          {status}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Al suscribirte aceptas recibir novedades de eventos por correo. Consulta
-          nuestra{" "}
-          <Link
-            href="/privacidad"
-            className="rounded-sm underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="flex w-full max-w-xl flex-col gap-2 sm:flex-row"
           >
-            política de privacidad
-          </Link>
-          .
-        </p>
-      </div>
+            <label htmlFor={inputId} className="sr-only">
+              Correo electrónico
+            </label>
+            <Input
+              ref={inputRef}
+              id={inputId}
+              type="email"
+              name="email"
+              autoComplete="email"
+              required
+              placeholder="tu@email.com"
+              className="h-11 flex-1"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={error?.field ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
+            />
+            <Button
+              type="submit"
+              variant="default"
+              size="lg"
+              className="h-11 cursor-pointer"
+              aria-disabled={isPending}
+            >
+              {isPending ? "Suscribiendo…" : "Suscribirse"}
+            </Button>
+          </form>
+          {error && (
+            <p id={errorId} role="alert" className="text-sm text-destructive">
+              {error.message}
+            </p>
+          )}
+          <p
+            role="status"
+            className={cn("text-sm text-muted-foreground", !status && "sr-only")}
+          >
+            {status}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Al suscribirte aceptas recibir novedades de eventos por correo. Consulta
+            nuestra{" "}
+            <Link
+              href="/privacidad"
+              className="rounded-sm underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              política de privacidad
+            </Link>
+            .
+          </p>
+        </div>
       </div>
     </section>
   )

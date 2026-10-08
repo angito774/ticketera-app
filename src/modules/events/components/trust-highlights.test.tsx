@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 import { TrustHighlights } from "./trust-highlights"
 
 const FORBIDDEN =
-  /pago seguro|cifrad|yape|tarjeta|(env[ií]\w*|por) (tus entradas )?(a |por )?(tu )?correo|\bqr\b|24\/7|soporte|reembols/i
+  /pago seguro|cifrad|yape|tarjeta|(env[ií]\w*|por) (tus entradas )?(a |por )?(tu )?correo|\b(a|en|por|al) (tu |su )?correo|\bqr\b|24\/7|soporte|reembols/i
 
 describe("TrustHighlights", () => {
   it("names the section by its h2", () => {

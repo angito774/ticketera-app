@@ -46,7 +46,7 @@ Los valores finos de la referencia (radios, sombras, tamaños de icono) no se pu
 ## Criterios de aceptación
 
 ### Cómo funciona
-- **AC-1**: `HowItWorks` renderiza una `PageSection` (id `how-it-works-title`) con h2 "Tres pasos y ya estás dentro." y una lista ordenada `<ol>` de 3 ítems, cada uno con: etiqueta "Paso N" (mostrada en mayúsculas con CSS `uppercase`), icono lucide decorativo `aria-hidden` (Search, Ticket, CreditCard), un `h3` y un párrafo.
+- **AC-1**: `HowItWorks` renderiza una `PageSection` (id `how-it-works-title`) con h2 "Tres pasos y ya estás dentro." y una lista ordenada `<ol>` de 3 ítems, cada uno con: etiqueta "Paso N" (mostrada en mayúsculas con CSS `uppercase`), icono lucide decorativo `aria-hidden` (Search, Ticket, CircleCheck; el paso 3 usa CircleCheck en vez de CreditCard por decisión posterior a la revisión, para no sugerir pago con tarjeta), un `h3` y un párrafo.
 - **AC-2**: Textos: 1 "Buscar" — "Encuentra el evento o artista que quieres ver."; 2 "Elegir" — "Selecciona tus entradas y la cantidad."; 3 "Comprar" — "Confirma tu compra y encuentra tus entradas al instante en Mis entradas." (sin mencionar métodos de pago, correo ni ciudad). Grilla `grid-cols-1 md:grid-cols-3`, `gap-6/8`.
 
 ### Para organizadores
@@ -108,7 +108,7 @@ Ubicación en `src/modules/events/components/` (home del dominio, junto a `explo
 | Botón "Publica tu evento" | `buttonVariants` con variante `cta` (`ui/button`) sobre `next/link` | **reusar** |
 | Fondo oscuro de la banda | token `brand-deep` / `brand-deep-foreground` | **reusar** (ver decisión de color abajo) |
 | Componentes de shadcn para features/CTA | `npx shadcn@latest search @shadcn -q "feature"` sin resultados; el registro no tiene bloques de landing en `@shadcn` (solo primitivos); no se requiere ningún primitivo nuevo | **no agregar nada** de shadcn |
-| Iconos | `lucide-react` (Search, Ticket, CreditCard, ShieldCheck, CircleCheck) | **reusar** |
+| Iconos | `lucide-react` (Search, Ticket, ShieldCheck, CircleCheck) | **reusar** |
 | Banner de organizadores | no existe (`PromoBanner` es el newsletter) | **crear** `OrganizerCta` |
 | Newsletter | `PromoBanner` + `promo-banner.test.tsx` | **extender** solo el marco (sección/contenedor/id del h2) |
 | Destino de organizadores | `/organizer` (mismo del Header "Vender entradas") | **reusar** |

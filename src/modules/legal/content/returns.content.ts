@@ -38,7 +38,7 @@ export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
       paragraphs: [
         "Si el evento se reprograma o cambia su fecha, lugar u objeto y no aceptas el cambio, puedes pedir la devolución del 100% del valor pagado.",
         `El plazo de devolución es de ${REFUND_DEADLINE}.`,
-        "Para conciertos, la Ley N.º 32415 regula la venta y devolución de entradas y establece ese plazo. Esa ley no aplica a eventos teatrales ni a eventos auspiciados por el Ministerio de Cultura.",
+        "Para conciertos, la Ley N.º 32415 regula la venta y devolución de entradas y establece ese plazo (dato a verificar en la normativa vigente). Esa ley no aplica a eventos teatrales ni a eventos auspiciados por el Ministerio de Cultura.",
         `Para teatro y otros eventos no cubiertos por esa ley, ${provider} aplica el mismo criterio por decisión comercial propia, no por obligación de esa ley.`,
       ],
     },
@@ -56,7 +56,7 @@ export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
       id: "como-solicitar-una-devolucion",
       title: "Cómo solicitar una devolución",
       paragraphs: [
-        `Escribe a ${customerServiceEmail} indicando el código de tu orden (el "Pedido N.º" que ves en la confirmación de compra y en "Mis entradas").`,
+        `Escribe a ${customerServiceEmail} indicando el "Pedido N.º" de la confirmación de compra, el nombre del evento y el código de tus entradas (visible en "Mis entradas").`,
         "Cada solicitud se atiende manualmente.",
       ],
     });

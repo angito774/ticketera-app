@@ -40,10 +40,10 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Legal",
     items: [
-      { label: "Términos y condiciones" },
+      { label: "Términos y condiciones", href: "/terminos" },
       { label: "Política de privacidad", href: "/privacidad" },
-      { label: "Política de cookies" },
-      { label: "Garantía y devoluciones" },
+      { label: "Política de cookies", href: "/cookies" },
+      { label: "Garantía y devoluciones", href: "/devoluciones" },
     ],
   },
 ];

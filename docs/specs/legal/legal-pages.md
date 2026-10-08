@@ -153,7 +153,7 @@ Convenciones nuevas aceptadas (Q-14): route group `(legal)` y sufijo `*.content.
 2. **Reprogramación o cambio de fecha, lugar u objeto del evento**: si el comprador no acepta el cambio, puede pedir la devolución del **100%**.
 3. **Plazo**: máximo **15 días hábiles desde la solicitud**. Texto: para conciertos, la Ley N.º 32415 regula la venta y devolución de entradas y establece ese plazo; esa ley no aplica a eventos teatrales ni auspiciados por el Ministerio de Cultura; para teatro y otros eventos no cubiertos por esa ley, TicketYa.com aplica el **mismo criterio por decisión comercial** (se dice así, sin atribuirlo a la ley).
 4. **Devolución a pedido sin que el evento cambie**: no procede, salvo lo que la ley reconozca al consumidor. Sin citar artículos.
-5. **Cómo solicitarla**: por correo a atencion@inkasign.com indicando el **código de la orden** ("Pedido N.º" que muestra la confirmación y "Mis entradas"). Las devoluciones se tramitan manualmente: no hay un proceso automático.
+5. **Cómo solicitarla**: por correo a atencion@inkasign.com indicando el **"Pedido N.º" de la confirmación de compra**, el nombre del evento y el código de las entradas (visible en "Mis entradas"). *Corregido tras la revisión: "Mis entradas" NO muestra el número de pedido, solo la confirmación de compra.*. Las devoluciones se tramitan manualmente: no hay un proceso automático.
 6. **Reclamos**: Libro de Reclamaciones solo según AC-17; respuesta en máximo 15 días hábiles (plazo del Reglamento del Libro de Reclamaciones). Hasta entonces: reclamos por correo, sin plazo prometido distinto al de las devoluciones.
 7. **Garantía legal**: remisión general al Código de Protección y Defensa del Consumidor (Ley N.º 29571); sin artículos.
 

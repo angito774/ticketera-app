@@ -74,7 +74,7 @@ describe("buildReturnsDocument", () => {
     expect(text).toContain("Ley N.º 32415");
     expect(text).toContain("Ley N.º 29571");
     expect(text).toContain("atencion@inkasign.com");
-    expect(text).toContain("código de tu orden");
+    expect(text).toContain("el código de tus entradas");
     expect(text).toContain("manual");
   });
 
@@ -114,5 +114,16 @@ describe("buildReturnsDocument", () => {
     const titles = buildReturnsDocument({}).sections.map((s) => s.title);
     expect(titles).not.toContain("Cómo solicitar una devolución");
     expect(titles).not.toContain("Reclamos");
+  });
+
+  it("does not say the order number is shown in Mis entradas", () => {
+    const text = RETURNS_DOCUMENT.sections.flatMap((s) => s.paragraphs ?? []).join(" ");
+    expect(text).not.toMatch(/confirmación de compra y en "Mis entradas"/);
+    expect(text).toMatch(/Pedido N\.º" de la confirmación de compra/);
+  });
+
+  it("marks the Ley 32415 deadline as pending verification", () => {
+    const text = RETURNS_DOCUMENT.sections.flatMap((s) => s.paragraphs ?? []).join(" ");
+    expect(text).toMatch(/Ley N\.º 32415[^.]*a verificar en la normativa vigente/);
   });
 });

@@ -126,4 +126,12 @@ describe("terms content", () => {
       expect(text).not.toMatch(pattern);
     }
   });
+
+  it("does not claim the order number can be consulted in the account", () => {
+    const text = buildTermsDocument(LEGAL_CONFIG)
+      .sections.flatMap((s) => s.paragraphs ?? [])
+      .join(" ");
+    expect(text).not.toMatch(/puedes consultar en tu cuenta/);
+    expect(text).toMatch(/que ves en la pantalla de confirmación/);
+  });
 });

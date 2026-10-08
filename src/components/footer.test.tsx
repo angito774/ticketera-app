@@ -24,15 +24,29 @@ describe("Footer", () => {
     }
   });
 
-  it("renders only Política de privacidad as a link", () => {
+  it("renders the four legal items as links with their hrefs", () => {
     render(<Footer />);
 
-    const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Política de privacidad" })).toHaveAttribute(
-      "href",
-      "/privacidad",
-    );
+    expect(screen.getAllByRole("link")).toHaveLength(4);
+    const expected = {
+      "Términos y condiciones": "/terminos",
+      "Política de privacidad": "/privacidad",
+      "Política de cookies": "/cookies",
+      "Garantía y devoluciones": "/devoluciones",
+    };
+    for (const [name, href] of Object.entries(expected)) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("keeps Centro de ayuda and social networks out of the links", () => {
+    render(<Footer />);
+
+    expect(screen.queryByRole("link", { name: "Centro de ayuda" })).toBeNull();
+    expect(screen.getByText("Centro de ayuda")).toBeInTheDocument();
+    for (const label of ["Facebook", "Instagram", "TikTok", "YouTube"]) {
+      expect(screen.queryByRole("link", { name: label })).toBeNull();
+    }
   });
 
   it("renders the copyright with the current year and no cookie banner text", () => {

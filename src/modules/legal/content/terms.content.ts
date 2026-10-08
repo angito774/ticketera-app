@@ -83,7 +83,7 @@ export function buildTermsDocument(config: LegalConfig = LEGAL_CONFIG): LegalDoc
       title: "Compra de entradas",
       paragraphs: [
         "Para comprar, eliges el evento, la cantidad de entradas y, cuando corresponda, los asientos, y pagas con el medio de pago habilitado en la plataforma.",
-        "Al finalizar la compra se genera un pedido con su número, que puedes consultar en tu cuenta. La disponibilidad de entradas puede variar mientras completas el proceso.",
+        "Al finalizar la compra se genera un pedido con su número, que ves en la pantalla de confirmación. Tus entradas quedan disponibles en \"Mis entradas\". La disponibilidad de entradas puede variar mientras completas el proceso.",
       ],
     },
     {

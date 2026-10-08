@@ -7,7 +7,10 @@ import { Hero } from "@/modules/events/components/hero";
 import type { PublicParams } from "@/modules/events/components/category-events";
 import { ExploreCategories } from "@/modules/events/components/explore-categories";
 import { FeaturedEvents } from "@/modules/events/components/featured-events";
+import { HowItWorks } from "@/modules/events/components/how-it-works";
+import { OrganizerCta } from "@/modules/events/components/organizer-cta";
 import { PromoBanner } from "@/modules/events/components/promo-banner";
+import { TrustHighlights } from "@/modules/events/components/trust-highlights";
 import { UpcomingEvents } from "@/modules/events/components/upcoming-events";
 import {
   eventListKey,
@@ -62,6 +65,12 @@ export default async function Home() {
             concertParams={CONCERT_PARAMS}
             theaterParams={THEATER_PARAMS}
           />
+
+          <HowItWorks />
+
+          <OrganizerCta />
+
+          <TrustHighlights />
 
           <PromoBanner />
         </main>

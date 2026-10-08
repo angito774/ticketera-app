@@ -2,6 +2,9 @@ import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
+export const PAGE_SECTION_CLASSES =
+  "mx-auto w-full max-w-7xl px-4 py-12 md:px-6 md:py-16 lg:px-8"
+
 interface PageSectionProps {
   /** id del h2; el <section> lo referencia con aria-labelledby. */
   id: string
@@ -22,10 +25,7 @@ export function PageSection({
   return (
     <section
       aria-labelledby={id}
-      className={cn(
-        "mx-auto w-full max-w-7xl px-4 py-12 md:px-6 md:py-16 lg:px-8",
-        className
-      )}
+      className={cn(PAGE_SECTION_CLASSES, className)}
     >
       <div className="mb-6 flex items-center justify-between gap-4">
         <h2 id={id} className="text-2xl font-bold md:text-3xl">

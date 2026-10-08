@@ -3,6 +3,7 @@
 import { useId, useRef, useState, useTransition, type FormEvent } from "react"
 import Link from "next/link"
 
+import { PAGE_SECTION_CLASSES } from "@/components/page-section"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -34,6 +35,7 @@ function PromoBanner({
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
   const errorId = `${inputId}-error`
+  const headingId = useId()
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -70,13 +72,15 @@ function PromoBanner({
 
   return (
     <section
-      className={cn(
-        "bg-surface-warm py-12 text-center md:py-16",
-        className
-      )}
+      aria-labelledby={headingId}
+      className={cn(PAGE_SECTION_CLASSES, className)}
     >
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 px-4">
-        <h2 className="text-3xl font-bold text-foreground md:text-4xl">
+      <div className="rounded-3xl bg-surface-warm px-6 py-12 text-center md:px-12">
+      <div className="mx-auto flex max-w-2xl flex-col items-center gap-6">
+        <h2
+          id={headingId}
+          className="text-3xl font-bold text-foreground md:text-4xl"
+        >
           {title}
         </h2>
         <p className="text-base text-muted-foreground md:text-lg">
@@ -136,6 +140,7 @@ function PromoBanner({
           </Link>
           .
         </p>
+      </div>
       </div>
     </section>
   )

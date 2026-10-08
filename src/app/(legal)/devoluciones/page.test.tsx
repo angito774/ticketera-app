@@ -15,9 +15,11 @@ describe("ReturnsPage", () => {
     expect(metadata.title).toBe("Garantía y devoluciones · Ticketera");
   });
 
-  it("does not mention the complaints book while it is not configured", () => {
+  it("links the complaints book now that it is configured", () => {
     render(<ReturnsPage />);
-    expect(screen.queryByText(/libro de reclamaciones/i)).toBeNull();
-    expect(screen.queryByRole("link", { name: /reclamaciones/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /libro de reclamaciones/i })).toHaveAttribute(
+      "href",
+      "/libro-de-reclamaciones",
+    );
   });
 });

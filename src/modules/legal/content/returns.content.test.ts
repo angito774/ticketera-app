@@ -86,11 +86,17 @@ describe("buildReturnsDocument", () => {
   });
 
   it("does not mention the complaints book without complaintsBookUrl", () => {
-    expect(LEGAL_CONFIG.complaintsBookUrl).toBeUndefined();
-    const text = allText(RETURNS_DOCUMENT);
+    const doc = buildReturnsDocument({ ...LEGAL_CONFIG, complaintsBookUrl: undefined });
+    const text = allText(doc);
     expect(text).not.toMatch(/libro/i);
     expect(text).not.toMatch(/reclamaciones/i);
-    expect(RETURNS_DOCUMENT.sections.every((s) => !s.links)).toBe(true);
+    expect(doc.sections.every((s) => !s.links)).toBe(true);
+  });
+
+  it("links the complaints book with the real config", () => {
+    expect(LEGAL_CONFIG.complaintsBookUrl).toBe("/libro-de-reclamaciones");
+    const links = RETURNS_DOCUMENT.sections.flatMap((s) => s.links ?? []);
+    expect(links).toContainEqual({ label: "Libro de Reclamaciones", href: "/libro-de-reclamaciones" });
   });
 
   it("mentions and links the complaints book when configured", () => {

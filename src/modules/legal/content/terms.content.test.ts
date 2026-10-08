@@ -78,7 +78,7 @@ describe("terms content", () => {
     const hrefs = buildTermsDocument(LEGAL_CONFIG).sections.flatMap((s) =>
       (s.links ?? []).map((l) => l.href),
     );
-    expect(hrefs).toEqual(["/devoluciones", "/privacidad", "/cookies"]);
+    expect(hrefs).toEqual(["/devoluciones", "/privacidad", "/cookies", "/libro-de-reclamaciones"]);
   });
 
   it("shows the brand notice only with the real config", () => {
@@ -100,7 +100,8 @@ describe("terms content", () => {
   });
 
   it("does not mention the complaints book while complaintsBookUrl is undefined", () => {
-    expect(allText(buildTermsDocument(LEGAL_CONFIG))).not.toMatch(/Libro de Reclamaciones/i);
+    const doc = buildTermsDocument({ ...LEGAL_CONFIG, complaintsBookUrl: undefined });
+    expect(allText(doc)).not.toMatch(/Libro de Reclamaciones/i);
   });
 
   it("mentions and links the complaints book when complaintsBookUrl is defined", () => {

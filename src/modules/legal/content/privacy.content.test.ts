@@ -89,6 +89,22 @@ describe("privacy content", () => {
   });
 
   it("does not mention the complaints book while its URL is undefined", () => {
-    expect(allText(PRIVACY_DOCUMENT)).not.toMatch(/libro de reclamaciones/i);
+    const doc = buildPrivacyDocument({ ...LEGAL_CONFIG, complaintsBookUrl: undefined });
+    expect(allText(doc)).not.toMatch(/libro de reclamaciones/i);
+  });
+
+  it("declares the complaints book data, purpose and retention once it is active", () => {
+    const text = allText(PRIVACY_DOCUMENT);
+    expect(text).toMatch(/Libro de Reclamaciones: los datos que ingresas/);
+    expect(text).toMatch(/domicilio, teléfono, correo electrónico/);
+    expect(text).toMatch(/Atender y responder los reclamos y quejas/);
+    expect(text).toMatch(/se conservan durante 2 años \(plazo a verificar/);
+  });
+
+  it("keeps the retention section for claims even without a general retention period", () => {
+    const doc = buildPrivacyDocument({ ...LEGAL_CONFIG, retention: undefined });
+    const titles = doc.sections.map((s) => s.title);
+    expect(titles).toContain("Plazo de conservación");
+    expect(allText(doc)).not.toMatch(/Conservamos tus datos/);
   });
 });

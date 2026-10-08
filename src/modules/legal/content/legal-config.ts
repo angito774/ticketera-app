@@ -1,3 +1,5 @@
+import { CLAIMS_PROVIDER } from "@/modules/claims/config/claims-provider";
+
 export interface LegalConfig {
   brandName?: string;
   legalName?: string;
@@ -13,13 +15,14 @@ export interface LegalConfig {
 
 export const LEGAL_CONFIG: LegalConfig = {
   brandName: "Ticketera", // marca de TicketYa.com (confirmado por el usuario)
-  legalName: "TicketYa.com",
-  ruc: "20513249510", // pendiente de verificación por el titular (no confirmado en SUNAT)
-  address: "Calle las Acasias Nro 1850", // sin distrito ni ciudad: el titular no los indicó
-  customerServiceEmail: "atencion@inkasign.com",
-  rightsEmail: "atencion@inkasign.com",
+  // Datos del proveedor compartidos con el Libro de Reclamaciones (una sola fuente).
+  legalName: CLAIMS_PROVIDER.legalName,
+  ruc: CLAIMS_PROVIDER.ruc, // pendiente de verificación por el titular (no confirmado en SUNAT)
+  address: CLAIMS_PROVIDER.address, // sin distrito ni ciudad: el titular no los indicó
+  customerServiceEmail: CLAIMS_PROVIDER.email,
+  rightsEmail: CLAIMS_PROVIDER.email,
   retention: "mientras la cuenta esté activa",
   governingLaw: "leyes del Perú y tribunales de Lima",
   hosting: "Vercel",
-  // complaintsBookUrl: se define en T-8 cuando exista /libro-de-reclamaciones
+  complaintsBookUrl: "/libro-de-reclamaciones",
 };

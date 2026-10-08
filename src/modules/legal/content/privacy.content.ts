@@ -2,7 +2,7 @@ import { LEGAL_CONFIG, type LegalConfig } from "@/modules/legal/content/legal-co
 import type { LegalDocument, LegalSection } from "@/modules/legal/types/legal.types";
 
 export function buildPrivacyDocument(config: LegalConfig = LEGAL_CONFIG): LegalDocument {
-  const { brandName, legalName, ruc, address, rightsEmail, retention, hosting } = config;
+  const { brandName, legalName, ruc, address, rightsEmail, retention, hosting, complaintsBookUrl } = config;
 
   const controllerItems = [
     legalName ? `Razón social: ${legalName}.` : null,
@@ -34,6 +34,11 @@ export function buildPrivacyDocument(config: LegalConfig = LEGAL_CONFIG): LegalD
         "Cuenta de usuario (sincronizada desde el servicio de autenticación): identificador de la cuenta, correo electrónico, nombre, URL de la imagen de perfil, si el correo está verificado, los proveedores de acceso usados y la fecha del último inicio de sesión.",
         "Compras: tus órdenes, el detalle de entradas de cada orden y las entradas emitidas, cada una con su código único y su estado.",
         "Newsletter: el correo electrónico que indicas al suscribirte y la fecha de suscripción.",
+        ...(complaintsBookUrl
+          ? [
+              "Libro de Reclamaciones: los datos que ingresas en el formulario (nombre, tipo y número de documento, domicilio, teléfono, correo electrónico, los datos del apoderado si eres menor de edad, el bien o servicio reclamado, el monto, el detalle de tu reclamo o queja y tu pedido), junto con el código del reclamo y las fechas de registro y de respuesta.",
+            ]
+          : []),
       ],
     },
     {
@@ -45,6 +50,9 @@ export function buildPrivacyDocument(config: LegalConfig = LEGAL_CONFIG): LegalD
         "Registrar tus compras y mostrarte tus entradas en Mis entradas.",
         "Enviarte novedades de eventos por correo electrónico, solo si te suscribiste al newsletter.",
         "Atender las solicitudes que nos hagas por correo.",
+        ...(complaintsBookUrl
+          ? ["Atender y responder los reclamos y quejas que registres en el Libro de Reclamaciones."]
+          : []),
       ],
     },
     {
@@ -77,11 +85,18 @@ export function buildPrivacyDocument(config: LegalConfig = LEGAL_CONFIG): LegalD
         "Los servicios de terceros indicados pueden procesar o almacenar datos fuera del Perú. No detallamos la ubicación de sus servidores.",
       ],
     },
-    retention
+    retention || complaintsBookUrl
       ? {
           id: "conservacion",
           title: "Plazo de conservación",
-          paragraphs: [`Conservamos tus datos ${retention}.`],
+          paragraphs: [
+            ...(retention ? [`Conservamos tus datos ${retention}.`] : []),
+            ...(complaintsBookUrl
+              ? [
+                  "Los reclamos registrados en el Libro de Reclamaciones se conservan durante 2 años (plazo a verificar contra el Reglamento vigente), aunque tu cuenta deje de estar activa.",
+                ]
+              : []),
+          ],
         }
       : null,
     {

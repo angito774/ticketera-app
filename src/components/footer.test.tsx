@@ -16,7 +16,7 @@ describe("Footer", () => {
   it("renders social networks as non-interactive images", () => {
     render(<Footer />);
 
-    for (const label of ["Facebook", "Instagram", "Twitter"]) {
+    for (const label of ["Facebook", "Instagram", "TikTok", "YouTube"]) {
       const social = screen.getByRole("img", { name: label });
       expect(social).not.toHaveAttribute("href");
       expect(social.closest("a")).toBeNull();
@@ -45,9 +45,9 @@ describe("Footer", () => {
     expect(screen.queryByText(/solo usamos cookies/i)).toBeNull();
   });
 
-  it("keeps the original light muted background", () => {
+  it("uses the light indigo accent background", () => {
     render(<Footer className="extra" />);
 
-    expect(screen.getByRole("contentinfo")).toHaveClass("bg-muted/30", "extra");
+    expect(screen.getByRole("contentinfo")).toHaveClass("bg-accent", "border-indigo-200", "extra");
   });
 });

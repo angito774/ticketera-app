@@ -1,6 +1,11 @@
-import { Camera, Share2, X } from "lucide-react";
 import Link from "next/link";
 
+import {
+  FacebookIcon,
+  InstagramIcon,
+  TikTokIcon,
+  YouTubeIcon,
+} from "@/components/social-icons";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +49,10 @@ const FOOTER_COLUMNS: FooterColumn[] = [
 ];
 
 const SOCIAL_LINKS = [
-  { label: "Facebook", icon: Share2 },
-  { label: "Instagram", icon: Camera },
-  { label: "Twitter", icon: X },
+  { label: "Facebook", icon: FacebookIcon },
+  { label: "Instagram", icon: InstagramIcon },
+  { label: "TikTok", icon: TikTokIcon },
+  { label: "YouTube", icon: YouTubeIcon },
 ];
 
 export function Footer({ className }: FooterProps) {
@@ -54,7 +60,7 @@ export function Footer({ className }: FooterProps) {
 
   return (
     <footer
-      className={cn("border-t border-border bg-muted/30", className)}
+      className={cn("border-t border-indigo-200 bg-accent", className)}
     >
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
@@ -69,7 +75,7 @@ export function Footer({ className }: FooterProps) {
                   key={label}
                   role="img"
                   aria-label={label}
-                  className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                  className="flex size-10 items-center justify-center rounded-lg bg-indigo-100 text-accent-foreground"
                 >
                   <Icon className="size-5" aria-hidden="true" />
                 </span>
@@ -102,7 +108,7 @@ export function Footer({ className }: FooterProps) {
           ))}
         </div>
 
-        <Separator className="my-8" />
+        <Separator className="my-8 bg-indigo-200" />
 
         <p className="text-center text-sm text-muted-foreground sm:text-left">
           © {year} Ticketera. Todos los derechos reservados.

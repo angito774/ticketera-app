@@ -24,15 +24,16 @@ describe("Footer", () => {
     }
   });
 
-  it("renders the five links with their hrefs", () => {
+  it("renders the six links with their hrefs", () => {
     render(<Footer />);
 
-    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getAllByRole("link")).toHaveLength(6);
     const expected = {
       "Términos y condiciones": "/terminos",
       "Política de privacidad": "/privacidad",
       "Política de cookies": "/cookies",
       "Garantía y devoluciones": "/devoluciones",
+      "Campañas comerciales": "/campanas-comerciales",
       "Libro de Reclamaciones": "/libro-de-reclamaciones",
     };
     for (const [name, href] of Object.entries(expected)) {

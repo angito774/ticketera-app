@@ -45,6 +45,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Política de privacidad", href: "/privacidad" },
       { label: "Política de cookies", href: "/cookies" },
       { label: "Garantía y devoluciones", href: "/devoluciones" },
+      { label: "Campañas comerciales", href: "/campanas-comerciales" },
     ],
   },
 ];

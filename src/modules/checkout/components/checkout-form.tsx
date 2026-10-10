@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, QrCode } from "lucide-react";
+import { Lock } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -18,7 +18,6 @@ import {
   RequiredMark,
   fieldA11yProps,
 } from "@/components/form-field";
-import { PaymentMethodField } from "@/modules/checkout/components/payment-method-field";
 import {
   DOCUMENT_TYPE_LABELS,
   DOCUMENT_TYPES,
@@ -28,7 +27,7 @@ import {
   type DocumentType,
 } from "@/modules/checkout/schemas/checkout.schema";
 
-/** id del DOM de un campo del checkout: "card.number" → "checkout-card-number". */
+/** id del DOM de un campo del checkout: "fullName" → "checkout-fullName". */
 export function checkoutFieldId(field: string): string {
   return `checkout-${field.replace(/\./g, "-")}`;
 }
@@ -46,11 +45,8 @@ const SECTION_CLASSES = "flex flex-col gap-5 rounded-3xl border bg-card p-5 lg:p
 const INFO_CLASSES =
   "flex items-start gap-3 rounded-2xl bg-accent p-4 text-sm leading-relaxed text-accent-foreground";
 
-/** Datos del comprador, método de pago y aceptación de términos (campos controlados). */
+/** Datos del comprador, aviso del pago en Stripe y aceptación de términos (campos controlados). */
 export function CheckoutForm({ values, errors, onChange, onFieldBlur, className }: CheckoutFormProps) {
-  const setCard = (patch: Partial<CheckoutFormValues["card"]>) =>
-    onChange({ card: { ...values.card, ...patch } });
-
   return (
     <div className={cn("flex flex-col gap-4 lg:gap-6", className)}>
       <section className={SECTION_CLASSES}>
@@ -105,7 +101,7 @@ export function CheckoutForm({ values, errors, onChange, onFieldBlur, className 
               </Select>
               <Input
                 {...fieldA11yProps(checkoutFieldId("documentNumber"), errors.documentNumber, true)}
-              onBlur={() => onFieldBlur("documentNumber")}
+                onBlur={() => onFieldBlur("documentNumber")}
                 type="text"
                 inputMode={values.documentType === "PASSPORT" ? "text" : "numeric"}
                 placeholder="Número"
@@ -132,84 +128,12 @@ export function CheckoutForm({ values, errors, onChange, onFieldBlur, className 
       </section>
 
       <section className={SECTION_CLASSES}>
-        <h2 className="text-lg font-semibold lg:text-xl">Método de pago</h2>
-        <PaymentMethodField
-          value={values.paymentMethod}
-          onChange={(paymentMethod) => onChange({ paymentMethod })}
-        />
-
-        {values.paymentMethod === "card" && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <FormField required id={checkoutFieldId("card.number")} label="Número de tarjeta" error={errors["card.number"]} className="col-span-2">
-              <Input
-                {...fieldA11yProps(checkoutFieldId("card.number"), errors["card.number"], true)}
-              onBlur={() => onFieldBlur("card.number")}
-                type="text"
-                inputMode="numeric"
-                autoComplete="cc-number"
-                placeholder="0000 0000 0000 0000"
-                maxLength={19}
-                value={values.card.number}
-                onChange={(event) => setCard({ number: event.target.value })}
-                className={INPUT_CLASSES}
-              />
-            </FormField>
-            <FormField required id={checkoutFieldId("card.expiry")} label="Vencimiento" error={errors["card.expiry"]}>
-              <Input
-                {...fieldA11yProps(checkoutFieldId("card.expiry"), errors["card.expiry"], true)}
-              onBlur={() => onFieldBlur("card.expiry")}
-                type="text"
-                inputMode="numeric"
-                autoComplete="cc-exp"
-                placeholder="MM/AA"
-                maxLength={5}
-                value={values.card.expiry}
-                onChange={(event) => setCard({ expiry: event.target.value })}
-                className={INPUT_CLASSES}
-              />
-            </FormField>
-            <FormField required id={checkoutFieldId("card.cvv")} label="CVV" error={errors["card.cvv"]}>
-              <Input
-                {...fieldA11yProps(checkoutFieldId("card.cvv"), errors["card.cvv"], true)}
-              onBlur={() => onFieldBlur("card.cvv")}
-                type="password"
-                inputMode="numeric"
-                autoComplete="cc-csc"
-                placeholder="3 o 4 dígitos"
-                maxLength={4}
-                value={values.card.cvv}
-                onChange={(event) => setCard({ cvv: event.target.value })}
-                className={INPUT_CLASSES}
-              />
-            </FormField>
-            <FormField required id={checkoutFieldId("card.holder")} label="Nombre en la tarjeta" error={errors["card.holder"]} className="col-span-2 sm:col-span-4">
-              <Input
-                {...fieldA11yProps(checkoutFieldId("card.holder"), errors["card.holder"], true)}
-              onBlur={() => onFieldBlur("card.holder")}
-                type="text"
-                autoComplete="cc-name"
-                placeholder="Como aparece en la tarjeta"
-                value={values.card.holder}
-                onChange={(event) => setCard({ holder: event.target.value })}
-                className={INPUT_CLASSES}
-              />
-            </FormField>
-          </div>
-        )}
-
-        {values.paymentMethod === "yape" && (
-          <p className={INFO_CLASSES}>
-            <QrCode className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            Al continuar te mostraremos un código QR para pagar desde tu app de Yape.
-          </p>
-        )}
-
-        {values.paymentMethod === "cash" && (
-          <p className={INFO_CLASSES}>
-            <Info className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            Generaremos un código de pago para que pagues en agentes, bodegas o tu banca móvil.
-          </p>
-        )}
+        <h2 className="text-lg font-semibold lg:text-xl">Pago</h2>
+        <p className={INFO_CLASSES}>
+          <Lock className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          Al continuar te llevaremos a Stripe, nuestra pasarela de pago segura, para completar el pago con tarjeta.
+          Ticketera no recibe ni guarda los datos de tu tarjeta.
+        </p>
       </section>
 
       <div

@@ -13,13 +13,22 @@ import { EventsApiError, useEvents } from "@/modules/events/hooks/use-events";
 import { parseEventListParams, type EventListStatus } from "@/modules/events/schemas/event-list.schema";
 import { OrganizerEventsList } from "@/modules/organizer/components/organizer-events-list";
 import { SummaryKpis } from "@/modules/organizer/components/summary-kpis";
+import { ConnectStatusCard } from "@/modules/payments/components/connect-status-card";
+import type { OrganizationConnectView } from "@/modules/payments/types/connect.types";
 
 export type SaveNotice = "draft" | "published" | null;
 
 interface OrganizerDashboardViewProps {
   notice: SaveNotice;
   canFeature: boolean;
+  connectViews: OrganizationConnectView[];
+  connectNotice: "return" | "refresh" | null;
 }
+
+const CONNECT_NOTICE_TEXT = {
+  return: "Revisamos el estado de tu cuenta de pagos.",
+  refresh: "El enlace de configuración expiró. Genera uno nuevo con el botón de tu cuenta de pagos.",
+};
 
 const FILTERS: { key: EventListStatus; label: string }[] = [
   { key: "all", label: "Todos" },
@@ -59,7 +68,7 @@ function ListSkeleton() {
 }
 
 /** Resumen del organizador: KPIs y eventos reales desde la API. */
-export function OrganizerDashboardView({ notice, canFeature }: OrganizerDashboardViewProps) {
+export function OrganizerDashboardView({ notice, canFeature, connectViews, connectNotice }: OrganizerDashboardViewProps) {
   const [filter, setFilter] = useState<EventListStatus>("all");
   const { data, error, isPending, isError, isPlaceholderData, refetch, isRefetching } = useEvents({
     ...BASE_PARAMS,
@@ -98,6 +107,22 @@ export function OrganizerDashboardView({ notice, canFeature }: OrganizerDashboar
           <CheckCircle2 className="size-5" aria-hidden="true" />
           {NOTICE_TEXT[notice]}
         </p>
+      )}
+
+      {connectViews.length > 0 && (
+        <section aria-labelledby="connect-heading" className="flex flex-col gap-3">
+          <h2 id="connect-heading" className="text-lg font-semibold lg:text-xl">
+            Cuenta de pagos
+          </h2>
+          {connectNotice && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {CONNECT_NOTICE_TEXT[connectNotice]}
+            </p>
+          )}
+          {connectViews.map((view) => (
+            <ConnectStatusCard key={view.organizationId} view={view} />
+          ))}
+        </section>
       )}
 
       <SummaryKpis

@@ -9,6 +9,7 @@ import {
 } from "@/modules/organizer/services/event-seats";
 import {
   EventRuleError,
+  assertPaymentsReady,
   assertPublishable,
   buildTicketTypeRows,
   draftGuardSql,
@@ -185,5 +186,18 @@ describe("assertPublishable", () => {
   it("zona numerada no necesita cantidad", () => {
     const numbered = input({ tiers: [{ zoneId: "z-num", priceCents: 100, quantity: null }] });
     expect(() => assertPublishable(numbered, zones, NOW)).not.toThrow();
+  });
+});
+
+describe("assertPaymentsReady", () => {
+  it("permite publicar con la cuenta de pagos activa", () => {
+    expect(() => assertPaymentsReady("active")).not.toThrow();
+  });
+
+  it.each(["not_started", "pending", "restricted"] as const)("bloquea con estado %s", (status) => {
+    expect(() => assertPaymentsReady(status)).toThrow(EventRuleError);
+    expect(() => assertPaymentsReady(status)).toThrow(
+      "Conecta tu cuenta de pagos para publicar eventos",
+    );
   });
 });

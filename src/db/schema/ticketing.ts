@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   check,
   index,
   integer,
@@ -12,6 +13,7 @@ import { createdAt, timestamps, tstz } from "./columns";
 import { discountType, seatStatus } from "./enums";
 import { events } from "./events";
 import { organizations, users } from "./identity";
+import { orders } from "./orders";
 import { venueSeats, venueZones } from "./venues";
 
 export const ticketTypes = pgTable(
@@ -79,6 +81,9 @@ export const ticketHolds = pgTable(
     }),
     quantity: integer().notNull().default(1),
     userId: text().references(() => users.id, { onDelete: "set null" }),
+    orderId: uuid().references((): AnyPgColumn => orders.id, {
+      onDelete: "cascade",
+    }),
     expiresAt: tstz().notNull(),
     createdAt: createdAt(),
   },
@@ -86,6 +91,7 @@ export const ticketHolds = pgTable(
     // Un asiento solo puede tener un hold activo a la vez (NULL permite varios holds generales).
     unique("ticket_holds_event_seat_uq").on(t.eventSeatId),
     index("ticket_holds_ticket_type_idx").on(t.ticketTypeId),
+    index("ticket_holds_order_idx").on(t.orderId),
     index("ticket_holds_user_idx").on(t.userId),
     index("ticket_holds_expires_at_idx").on(t.expiresAt),
     check("ticket_holds_quantity_check", sql`${t.quantity} > 0`),

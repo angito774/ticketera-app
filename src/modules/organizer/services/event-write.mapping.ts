@@ -5,8 +5,15 @@ import {
   MIN_TITLE as MIN_TITLE_LENGTH,
   type EventSaveInput,
 } from "@/modules/organizer/schemas/event-form.schema";
+import type { ConnectStatus } from "@/modules/payments/types/connect.types";
 
 export class EventRuleError extends Error {}
+
+export function assertPaymentsReady(status: ConnectStatus): void {
+  if (status !== "active") {
+    throw new EventRuleError("Conecta tu cuenta de pagos para publicar eventos");
+  }
+}
 
 /**
  * Primera sentencia del batch de edición: aborta todo (división por cero, 22012) si el evento ya no es borrador.

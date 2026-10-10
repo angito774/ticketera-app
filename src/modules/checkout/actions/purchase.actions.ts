@@ -7,7 +7,7 @@ import { purchaseRequestSchema } from "@/modules/checkout/schemas/purchase.schem
 import { PurchaseError, purchaseTickets } from "@/modules/checkout/services/purchase.service";
 
 export type PurchaseActionResult =
-  | { ok: true; orderId: string }
+  | { ok: true; orderId: string; checkoutUrl: string }
   | { ok: false; error: string };
 
 /** Ids, precios y totales se resuelven en servidor; del cliente solo llegan zona/asiento/cantidad. */
@@ -18,10 +18,10 @@ export async function purchaseTicketsAction(raw: unknown): Promise<PurchaseActio
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
   try {
-    const { orderId } = await purchaseTickets(actor, parsed.data);
+    const { orderId, checkoutUrl } = await purchaseTickets(actor, parsed.data);
     revalidatePath("/organizer", "layout");
     revalidatePath("/events", "layout");
-    return { ok: true, orderId };
+    return { ok: true, orderId, checkoutUrl };
   } catch (error) {
     if (error instanceof PurchaseError) return { ok: false, error: error.message };
     throw error;

@@ -8,6 +8,7 @@ import {
   categories,
   eventSeats,
   events,
+  organizations,
   ticketTypes,
   venueSeats,
   venueZones,
@@ -22,6 +23,7 @@ import type { EventSaveInput } from "@/modules/organizer/schemas/event-form.sche
 import { buildEventSeatRows, chunkRows } from "@/modules/organizer/services/event-seats";
 import {
   EventRuleError,
+  assertPaymentsReady,
   assertPublishable,
   assertPublishedText,
   buildTicketTypeRows,
@@ -83,6 +85,15 @@ async function loadZones(input: EventSaveInput, organizationId: string): Promise
     .where(eq(venueZones.venueId, venue.id));
 }
 
+async function assertOrganizationCanPublish(organizationId: string): Promise<void> {
+  const organization = await db.query.organizations.findFirst({
+    columns: { stripeConnectStatus: true },
+    where: eq(organizations.id, organizationId),
+  });
+  if (!organization) throw new AdminError("Organización no encontrada");
+  assertPaymentsReady(organization.stripeConnectStatus);
+}
+
 async function seatIdsByZone(zoneIds: string[]): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
   if (zoneIds.length === 0) return map;
@@ -135,7 +146,10 @@ export async function createEvent(
   return translate(async () => {
     const columns = requireEventColumns(input);
     const zones = await loadZones(input, input.organizationId);
-    if (input.mode === "publish") assertPublishable(input, zones);
+    if (input.mode === "publish") {
+      assertPublishable(input, zones);
+      await assertOrganizationCanPublish(input.organizationId);
+    }
 
     const featured = resolveFeatured(can(actor, "events:feature"), input.featured);
     const eventId = randomUUID();
@@ -241,7 +255,10 @@ export async function updateEvent(
 
     const columns = requireEventColumns(input);
     const zones = await loadZones(input, current.organizationId);
-    if (input.mode === "publish") assertPublishable(input, zones);
+    if (input.mode === "publish") {
+      assertPublishable(input, zones);
+      await assertOrganizationCanPublish(current.organizationId);
+    }
     const tierRows = buildTicketTypeRows({
       mode: input.mode,
       eventId: id,

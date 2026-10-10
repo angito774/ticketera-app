@@ -32,6 +32,7 @@ export const orders = pgTable(
     applicationFeeAmount: integer(),
     couponId: uuid().references(() => coupons.id, { onDelete: "set null" }),
     discountAmount: integer().notNull().default(0),
+    expiresAt: tstz(), // vencimiento de la reserva de una orden pending
     ...timestamps(),
   },
   (t) => [

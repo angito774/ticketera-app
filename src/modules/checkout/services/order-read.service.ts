@@ -23,6 +23,8 @@ import { toLimaIso } from "@/modules/events/services/event-list.mapping";
 
 export type { OrderTicketView, OrderView } from "@/modules/checkout/services/order-read.mapping";
 
+const LISTED_STATUSES = ["paid", "refunded"] as const;
+
 function selectOrders(actor: CurrentUser, orderId?: string) {
   return db
     .select({
@@ -35,7 +37,12 @@ function selectOrders(actor: CurrentUser, orderId?: string) {
     })
     .from(orders)
     .innerJoin(events, eq(orders.eventId, events.id))
-    .where(and(eq(orders.userId, actor.id), orderId ? eq(orders.id, orderId) : undefined))
+    .where(
+      and(
+        eq(orders.userId, actor.id),
+        orderId ? eq(orders.id, orderId) : inArray(orders.status, [...LISTED_STATUSES]),
+      ),
+    )
     .orderBy(desc(orders.createdAt), asc(orders.id));
 }
 

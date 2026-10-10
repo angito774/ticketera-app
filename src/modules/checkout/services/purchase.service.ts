@@ -1,52 +1,35 @@
-import { randomUUID } from "node:crypto";
-
 import { and, eq, gt, inArray, or } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import { db } from "@/db";
-import {
-  eventSeats,
-  events,
-  orderItems,
-  orders,
-  ticketTypes,
-  tickets,
-  venueSeats,
-  venueZones,
-} from "@/db/schema";
-import {
-  isCheckViolation,
-  isDivisionByZero,
-  isForeignKeyViolation,
-  isUniqueViolation,
-} from "@/lib/pg-errors";
+import { eventSeats, events, orders, ticketTypes, venueSeats, venueZones } from "@/db/schema";
+import { getStripe } from "@/lib/stripe";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 import { getEventById } from "@/modules/events/services/events.service";
 import type { PurchaseRequest } from "@/modules/checkout/schemas/purchase.schema";
 import {
   PurchaseRuleError,
   computeTotalCents,
-  generateQrToken,
-  orderNumberFromId,
   resolveSelection,
   type ResolvedZone,
 } from "@/modules/checkout/services/purchase.mapping";
+import type { PricedItem } from "@/modules/checkout/services/purchase.query";
 import {
-  addSoldSql,
-  buildPurchaseRows,
-  claimSeatsSql,
-  reserveGeneralSql,
-  type PricedItem,
-} from "@/modules/checkout/services/purchase.query";
-import { chunkRows } from "@/modules/organizer/services/event-seats";
+  ReservationError,
+  attachCheckoutSession,
+  listPendingOrderIds,
+  releaseOrder,
+  reserveOrder,
+} from "@/modules/checkout/services/reservation.service";
+import {
+  HOLD_TTL_MINUTES,
+  buildCheckoutSessionParams,
+} from "@/modules/payments/services/checkout-session.mapping";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
-
-type Statement = BatchItem<"pg">;
 
 export class PurchaseError extends Error {
   constructor(
     message: string,
-    readonly status: 401 | 409 | 422 | 404,
+    readonly status: 401 | 409 | 422 | 404 | 502,
   ) {
     super(message);
     this.name = "PurchaseError";
@@ -60,7 +43,7 @@ const CONFLICT =
 
 async function loadEvent(slug: string) {
   const [event] = await db
-    .select({ id: events.id, venueId: events.venueId })
+    .select({ id: events.id, venueId: events.venueId, title: events.title })
     .from(events)
     .where(and(eq(events.slug, slug), eq(events.status, "published"), gt(events.startsAt, new Date())))
     .limit(1);
@@ -152,61 +135,84 @@ async function priceItems(
   });
 }
 
-function buildStatements(
+const PAYMENT_UNAVAILABLE = "No se pudo iniciar el pago; inténtalo de nuevo";
+
+/** Libera los intentos pendientes propios del evento y expira su sesión de Stripe (mejor esfuerzo). */
+async function supersedePendingOrders(actor: CurrentUser, eventId: string): Promise<void> {
+  const pendingIds = await listPendingOrderIds(actor.id, eventId);
+  for (const id of pendingIds) {
+    const [row] = await db
+      .select({ sessionId: orders.stripeCheckoutSessionId })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+    if ((await releaseOrder(id, "superseded")) === "released" && row?.sessionId) {
+      await getStripe().checkout.sessions.expire(row.sessionId).catch(() => undefined);
+    }
+  }
+}
+
+async function createSession(
+  orderId: string,
   actor: CurrentUser,
-  eventId: string,
+  event: { id: string; title: string },
+  request: PurchaseRequest,
   resolved: ResolvedZone[],
   items: PricedItem[],
-  orderId: string,
-): Statement[] {
-  const rows = buildPurchaseRows({
+): Promise<string> {
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) throw new Error("APP_URL is not set");
+  const params = buildCheckoutSessionParams({
     orderId,
-    userId: actor.id,
-    eventId,
-    totalCents: computeTotalCents(items),
-    items,
-    newId: randomUUID,
-    newToken: generateQrToken,
+    eventId: event.id,
+    eventSlug: request.eventSlug,
+    eventTitle: event.title,
+    buyerEmail: actor.email,
+    appUrl,
+    expiresAt: new Date(Date.now() + (HOLD_TTL_MINUTES + 1) * 60_000),
+    items: items.map((item, index) => ({
+      zoneName: resolved[index].zoneName,
+      unitPriceCents: item.unitPriceCents,
+      quantity: item.quantity,
+    })),
   });
-  const claims: Statement[] = [];
-  const general: Statement[] = [];
-  const numberedSold: Statement[] = [];
-  items.forEach((item, index) => {
-    if (resolved[index].seating === "numbered") {
-      claims.push(db.execute(claimSeatsSql(item.eventSeatIds)));
-      numberedSold.push(db.execute(addSoldSql(item.ticketTypeId, item.quantity)));
-    } else {
-      general.push(db.execute(reserveGeneralSql(item.ticketTypeId, item.quantity)));
-    }
+  const session = await getStripe().checkout.sessions.create(params, {
+    idempotencyKey: `checkout-${orderId}`,
   });
-  return [
-    ...claims,
-    ...general,
-    ...numberedSold,
-    db.insert(orders).values(rows.order),
-    db.insert(orderItems).values(rows.orderItems),
-    ...chunkRows(rows.tickets).map((chunk) => db.insert(tickets).values(chunk)),
-  ];
+  if (!session.url) throw new Error("Stripe session has no url");
+  await attachCheckoutSession(orderId, session.id);
+  return session.url;
 }
 
 export async function purchaseTickets(
   actor: CurrentUser | null,
   request: PurchaseRequest,
-): Promise<{ orderId: string; orderNumber: string }> {
+): Promise<{ orderId: string; checkoutUrl: string }> {
   if (!actor) throw new PurchaseError("Inicia sesión para comprar", 401);
 
   const { event, layout } = await loadEvent(request.eventSlug);
   const resolved = resolve(layout, request);
   const items = await priceItems(event.id, event.venueId, resolved);
+  if (!(computeTotalCents(items) > 0)) throw new PurchaseError(INVALID_SELECTION, 422);
 
-  const orderId = randomUUID();
-  const statements = buildStatements(actor, event.id, resolved, items, orderId);
+  await supersedePendingOrders(actor, event.id);
+
+  let orderId: string;
   try {
-    await db.batch(statements as [Statement, ...Statement[]]);
+    ({ orderId } = await reserveOrder({ actor, eventId: event.id, resolved, items }));
   } catch (error) {
-    if (isDivisionByZero(error) || isCheckViolation(error) || isUniqueViolation(error)) throw new PurchaseError(CONFLICT, 409);
-    if (isForeignKeyViolation(error)) throw new PurchaseError(INVALID_SELECTION, 422);
+    if (error instanceof ReservationError) {
+      throw new PurchaseError(error.kind === "conflict" ? CONFLICT : INVALID_SELECTION, error.kind === "conflict" ? 409 : 422);
+    }
     throw error;
   }
-  return { orderId, orderNumber: orderNumberFromId(orderId) };
+
+  try {
+    const checkoutUrl = await createSession(orderId, actor, event, request, resolved, items);
+    return { orderId, checkoutUrl };
+  } catch (error) {
+    console.error("checkout session failed", { orderId, name: error instanceof Error ? error.name : "unknown" });
+    await releaseOrder(orderId, "payment_failed").catch(() => undefined);
+    throw new PurchaseError(PAYMENT_UNAVAILABLE, 502);
+  }
 }

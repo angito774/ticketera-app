@@ -1,12 +1,18 @@
 "use client";
 
-import { CircleCheck, Mail, QrCode, Ticket } from "lucide-react";
+import { useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { CircleAlert, CircleCheck, Loader2, Mail, QrCode, Ticket } from "lucide-react";
 
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmationActions } from "@/modules/checkout/components/confirmation-actions";
 import { OrderTicketCard } from "@/modules/checkout/components/order-ticket-card";
+import { usePendingOrderRefresh } from "@/modules/checkout/hooks/use-pending-order-refresh";
 import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
+import { usePurchaseStore } from "@/modules/tickets/store/purchase.store";
 
 interface ConfirmationViewProps {
   order: OrderView;
@@ -20,8 +26,80 @@ const NEXT_STEPS = [
   { icon: Ticket, title: "Todo en Mis entradas", text: "Entra con tu cuenta para ver y descargar tus entradas cuando quieras." },
 ];
 
-/** Confirmación de compra con la orden real (ya validada como propia en el servidor). */
+interface StatusMessageProps {
+  icon: typeof CircleAlert;
+  title: string;
+  text: string;
+  spinning?: boolean;
+  href: string;
+  linkLabel: string;
+  className?: string;
+}
+
+function StatusMessage({ icon: Icon, title, text, spinning, href, linkLabel, className }: StatusMessageProps) {
+  return (
+    <div
+      role="status"
+      className={cn("mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center", className)}
+    >
+      <span className="flex size-16 items-center justify-center rounded-full bg-accent text-primary">
+        <Icon className={cn("size-9", spinning && "animate-spin")} aria-hidden="true" />
+      </span>
+      <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">{title}</h1>
+      <p className="text-muted-foreground">{text}</p>
+      <Link href={href} className={cn(buttonVariants({ variant: "cta" }), "h-12 rounded-2xl px-6 text-base")}>
+        {linkLabel}
+      </Link>
+    </div>
+  );
+}
+
+/** Confirmación según el estado real de la orden (ya validada como propia en el servidor). */
 export function ConfirmationView({ order, event, className }: ConfirmationViewProps) {
+  const router = useRouter();
+  const isPending = order.status === "pending";
+  const { exhausted } = usePendingOrderRefresh(isPending, () => router.refresh());
+
+  useEffect(() => {
+    if (order.status === "paid") usePurchaseStore.getState().clear();
+  }, [order.status]);
+
+  if (isPending) {
+    return exhausted ? (
+      <StatusMessage
+        icon={CircleAlert}
+        title="Aún no recibimos la confirmación"
+        text="Tu pago puede tardar unos minutos en confirmarse. Revisa Mis entradas más tarde."
+        href="/my-tickets"
+        linkLabel="Ir a Mis entradas"
+        className={className}
+      />
+    ) : (
+      <StatusMessage
+        spinning
+        icon={Loader2}
+        title="Confirmando tu pago…"
+        text="Estamos esperando la confirmación de Stripe. No cierres esta página."
+        href="/my-tickets"
+        linkLabel="Ir a Mis entradas"
+        className={className}
+      />
+    );
+  }
+
+  if (order.status === "cancelled") {
+    return (
+      <StatusMessage
+        icon={CircleAlert}
+        title="El pago no se completó"
+        text="El pago no se completó o la reserva expiró. Tus entradas se liberaron; puedes intentarlo de nuevo."
+        href={`/events/${order.eventSlug}/tickets`}
+        linkLabel="Reintentar compra"
+        className={className}
+      />
+    );
+  }
+
   return (
     <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-8 lg:gap-10", className)}>
       <div className="flex flex-col items-center gap-3 text-center">

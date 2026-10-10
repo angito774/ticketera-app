@@ -29,9 +29,9 @@ const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: "Empresa",
     items: [
-      { label: "Sobre nosotros" },
-      { label: "Contacto" },
-      { label: "Trabaja con nosotros" },
+      { label: "Sobre nosotros", href: "/sobre-nosotros" },
+      { label: "Contacto", href: "/contacto" },
+      { label: "Trabaja con nosotros", href: "/trabaja-con-nosotros" },
     ],
   },
   {

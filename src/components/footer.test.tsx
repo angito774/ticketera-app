@@ -24,11 +24,14 @@ describe("Footer", () => {
     }
   });
 
-  it("renders the six links with their hrefs", () => {
+  it("renders the nine links with their hrefs", () => {
     render(<Footer />);
 
-    expect(screen.getAllByRole("link")).toHaveLength(6);
+    expect(screen.getAllByRole("link")).toHaveLength(9);
     const expected = {
+      "Sobre nosotros": "/sobre-nosotros",
+      Contacto: "/contacto",
+      "Trabaja con nosotros": "/trabaja-con-nosotros",
       "Términos y condiciones": "/terminos",
       "Política de privacidad": "/privacidad",
       "Política de cookies": "/cookies",

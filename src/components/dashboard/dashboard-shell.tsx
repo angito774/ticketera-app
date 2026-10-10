@@ -4,7 +4,7 @@ import { useRef, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { Building2, Contact, ExternalLink, LayoutDashboard, LogOut, Menu, PlusCircle, ShieldCheck, Ticket, UserRound, Users, X } from "lucide-react";
+import { Building2, Contact, ExternalLink, LayoutDashboard, LogOut, Menu, PlusCircle, ShieldCheck, Ticket, UserRound, Users, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { NavIcon, NavItem, NavSection } from "@/modules/auth/services/dashboard-nav";
@@ -22,6 +22,7 @@ const ICONS: Record<NavIcon, ComponentType<{ className?: string; "aria-hidden"?:
   users: Users,
   contact: Contact,
   shield: ShieldCheck,
+  wallet: Wallet,
   external: ExternalLink,
 };
 

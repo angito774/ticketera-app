@@ -33,3 +33,8 @@ export const notificationStatus = pgEnum("notification_status", [
   "sent",
   "failed",
 ]);
+export const settlementStatus = pgEnum("settlement_status", [
+  "pending",
+  "paid",
+  "failed",
+]);

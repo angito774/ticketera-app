@@ -4,7 +4,7 @@ import {
   type AuthSubject,
 } from "@/modules/auth/services/permissions";
 
-export type NavIcon = "dashboard" | "plus" | "building" | "users" | "contact" | "shield" | "external";
+export type NavIcon = "dashboard" | "plus" | "building" | "users" | "contact" | "shield" | "wallet" | "external";
 
 export interface NavItem {
   href: string;
@@ -61,6 +61,14 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
         label: "Roles",
         icon: "shield",
         matchPrefix: "/admin/roles",
+      });
+    }
+    if (can(subject, "organizations:manage")) {
+      items.push({
+        href: "/admin/payments",
+        label: "Pagos",
+        icon: "wallet",
+        matchPrefix: "/admin/payments",
       });
     }
     sections.push({ title: "Administración", items });

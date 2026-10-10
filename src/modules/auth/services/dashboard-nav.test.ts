@@ -66,6 +66,7 @@ describe("getNavSections", () => {
       "Usuarios",
       "Clientes",
       "Roles",
+      "Pagos",
     ]);
     expect(getNavSections(superAdmin).at(-1)?.items[3]).toEqual({
       href: "/admin/roles",
@@ -75,6 +76,17 @@ describe("getNavSections", () => {
     });
     expect(labels(organizer)).not.toContain("Roles");
     expect(labels(organizer)).not.toContain("Clientes");
+  });
+
+  it("adds Pagos only with organizations:manage", () => {
+    expect(getNavSections(superAdmin).at(-1)?.items[4]).toEqual({
+      href: "/admin/payments",
+      label: "Pagos",
+      icon: "wallet",
+      matchPrefix: "/admin/payments",
+    });
+    expect(labels(admin)).not.toContain("Pagos");
+    expect(labels(organizer)).not.toContain("Pagos");
   });
 
   it("keeps Eventos active on the list and on its sub-routes", () => {

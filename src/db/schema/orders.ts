@@ -12,6 +12,7 @@ import { createdAt, timestamps, tstz } from "./columns";
 import { notificationStatus, orderStatus, ticketStatus } from "./enums";
 import { events } from "./events";
 import { users } from "./identity";
+import { settlements } from "./payments";
 import { coupons, eventSeats, ticketTypes } from "./ticketing";
 
 export const orders = pgTable(
@@ -33,12 +34,18 @@ export const orders = pgTable(
     couponId: uuid().references(() => coupons.id, { onDelete: "set null" }),
     discountAmount: integer().notNull().default(0),
     expiresAt: tstz(), // vencimiento de la reserva de una orden pending
+    settlementId: uuid().references(() => settlements.id, {
+      onDelete: "restrict",
+    }),
+    refundedAt: tstz(),
+    stripeRefundId: text().unique(),
     ...timestamps(),
   },
   (t) => [
     index("orders_user_idx").on(t.userId),
     index("orders_event_status_idx").on(t.eventId, t.status),
     index("orders_coupon_idx").on(t.couponId),
+    index("orders_settlement_idx").on(t.settlementId),
     check("orders_total_amount_check", sql`${t.totalAmount} >= 0`),
   ],
 );

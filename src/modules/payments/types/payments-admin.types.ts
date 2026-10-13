@@ -4,3 +4,14 @@ export interface CancelledEventRow {
   organizationName: string;
   paidOrders: number;
 }
+
+export interface PaymentRow {
+  orderId: string;
+  eventTitle: string;
+  organizationName: string;
+  buyerEmail: string;
+  amount: number;
+  status: "paid" | "refunded";
+  settled: boolean;
+  date: Date;
+}

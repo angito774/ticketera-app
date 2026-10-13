@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requirePermission } from "@/modules/auth/services/current-user.service";
 import { SettlementsTable } from "@/modules/payments/components/settlements-table";
+import { listPayments } from "@/modules/payments/services/payment-list.service";
 import { countPendingRefunds, listCancelledEventsWithPaidOrders } from "@/modules/payments/services/refund.service";
 import { listSettlementCandidates, listSettlements } from "@/modules/payments/services/settlement.service";
 
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 
 export default async function AdminPaymentsPage() {
   const user = await requirePermission("organizations:manage");
-  const [candidates, settlementRows, cancelledEvents, pendingRefunds] = await Promise.all([
+  const [payments, candidates, settlementRows, cancelledEvents, pendingRefunds] = await Promise.all([
+    listPayments(user),
     listSettlementCandidates(),
     listSettlements(user),
     listCancelledEventsWithPaidOrders(user),
@@ -28,6 +30,7 @@ export default async function AdminPaymentsPage() {
       </header>
 
       <SettlementsTable
+        payments={payments}
         candidates={candidates}
         settlements={settlementRows}
         cancelledEvents={cancelledEvents}

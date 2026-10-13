@@ -4,7 +4,7 @@ import { useRef, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { Building2, Contact, ExternalLink, LayoutDashboard, LogOut, Menu, PlusCircle, ShieldCheck, Ticket, UserRound, Users, Wallet, X } from "lucide-react";
+import { BarChart3, Building2, Contact, ExternalLink, LayoutDashboard, LogOut, Menu, PlusCircle, ShieldCheck, Ticket, UserRound, Users, Wallet, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { NavIcon, NavItem, NavSection } from "@/modules/auth/services/dashboard-nav";
@@ -17,6 +17,7 @@ interface DashboardShellProps {
 
 const ICONS: Record<NavIcon, ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" }>> = {
   dashboard: LayoutDashboard,
+  chart: BarChart3,
   plus: PlusCircle,
   building: Building2,
   users: Users,

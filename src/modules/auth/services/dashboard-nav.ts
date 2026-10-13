@@ -4,7 +4,7 @@ import {
   type AuthSubject,
 } from "@/modules/auth/services/permissions";
 
-export type NavIcon = "dashboard" | "plus" | "building" | "users" | "contact" | "shield" | "wallet" | "external";
+export type NavIcon = "dashboard" | "chart" | "plus" | "building" | "users" | "contact" | "shield" | "wallet" | "external";
 
 export interface NavItem {
   href: string;
@@ -43,8 +43,8 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
     const items: NavItem[] = [
       {
         href: "/admin/dashboard",
-        label: "Panel",
-        icon: "dashboard",
+        label: "Dashboard",
+        icon: "chart",
         matchPrefix: "/admin/dashboard",
       },
       { href: "/admin", label: "Organizaciones", icon: "building" },

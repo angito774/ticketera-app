@@ -6,6 +6,7 @@ import {
   mapRemainingByZone,
   mapSoldSeatIds,
   seatLabelOf,
+  shortTicketCode,
 } from "@/modules/checkout/services/order-read.mapping";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
 
@@ -32,6 +33,7 @@ describe("buildOrderViews", () => {
           id: "3f2b8c1e-1a2b-4c3d-8e9f-0a1b2c3d4e5f",
           eventSlug: "concert-01",
           eventTitle: "Show",
+          eventStatus: "cancelled",
           createdAt: new Date("2026-10-01T12:00:00Z"),
           totalAmountCents: 12550,
           status: "paid",
@@ -51,6 +53,14 @@ describe("buildOrderViews", () => {
       { id: "t1", zoneName: "Platea", seatLabel: "Fila B · Asiento 7", qrCode: "qr", status: "valid" },
     ]);
     expect(views[0].buyerEmail).toBe("ana@x.com");
+    expect(views[0].eventStatus).toBe("cancelled");
+  });
+});
+
+describe("shortTicketCode", () => {
+  it("quita guiones, recorta a 8 caracteres y pasa a mayúsculas", () => {
+    expect(shortTicketCode("ab-cd_efghijkl")).toBe("ABCD_EFG");
+    expect(shortTicketCode("abc")).toBe("ABC");
   });
 });
 

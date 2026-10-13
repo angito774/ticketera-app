@@ -31,6 +31,7 @@ function selectOrders(actor: CurrentUser, orderId?: string) {
       id: orders.id,
       eventSlug: events.slug,
       eventTitle: events.title,
+      eventStatus: events.status,
       createdAt: orders.createdAt,
       totalAmountCents: orders.totalAmount,
       status: orders.status,

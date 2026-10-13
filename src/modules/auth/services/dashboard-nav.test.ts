@@ -32,15 +32,15 @@ const labels = (subject: AuthSubject) =>
   getNavSections(subject).flatMap((s) => s.items.map((i) => i.label));
 
 describe("getNavSections", () => {
-  it("shows an organizer the overview and event creation only", () => {
-    expect(labels(organizer)).toEqual(["Resumen", "Crear evento"]);
+  it("shows an organizer the events entry only", () => {
+    expect(labels(organizer)).toEqual(["Eventos"]);
   });
 
   it("adds the administration section without Roles for admin", () => {
     const adminSection = getNavSections(admin).at(-1);
     expect(labels(admin)).toEqual([
-      "Resumen",
-      "Crear evento",
+      "Eventos",
+      "Dashboard",
       "Organizaciones",
       "Usuarios",
       "Clientes",
@@ -48,6 +48,7 @@ describe("getNavSections", () => {
     expect(adminSection).toMatchObject({
       title: "Administración",
       items: [
+        { href: "/admin/dashboard", icon: "chart" },
         { href: "/admin", icon: "building" },
         { href: "/admin/users", icon: "users", matchPrefix: "/admin/users" },
         {
@@ -57,19 +58,20 @@ describe("getNavSections", () => {
         },
       ],
     });
-    expect(adminSection?.items[0].matchPrefix).toBeUndefined();
+    expect(adminSection?.items[1].matchPrefix).toBeUndefined();
   });
 
   it("adds Roles only for super admin", () => {
     expect(labels(superAdmin)).toEqual([
-      "Resumen",
-      "Crear evento",
+      "Eventos",
+      "Dashboard",
       "Organizaciones",
       "Usuarios",
       "Clientes",
       "Roles",
+      "Pagos",
     ]);
-    expect(getNavSections(superAdmin).at(-1)?.items[3]).toEqual({
+    expect(getNavSections(superAdmin).at(-1)?.items[4]).toEqual({
       href: "/admin/roles",
       label: "Roles",
       icon: "shield",
@@ -79,15 +81,34 @@ describe("getNavSections", () => {
     expect(labels(organizer)).not.toContain("Clientes");
   });
 
-  it("matches the overview by exact path and event creation by prefix", () => {
-    const [overview, events] = getNavSections(organizer);
-    expect(overview.items[0]).toMatchObject({
+  it("adds Pagos only with organizations:manage", () => {
+    expect(getNavSections(superAdmin).at(-1)?.items[5]).toEqual({
+      href: "/admin/payments",
+      label: "Pagos",
+      icon: "wallet",
+      matchPrefix: "/admin/payments",
+    });
+    expect(labels(admin)).not.toContain("Pagos");
+    expect(labels(organizer)).not.toContain("Pagos");
+  });
+
+  it("puts Dashboard first in Administración for admin and super admin only", () => {
+    for (const subject of [admin, superAdmin]) {
+      expect(getNavSections(subject).at(-1)?.items[0]).toEqual({
+        href: "/admin/dashboard",
+        label: "Dashboard",
+        icon: "chart",
+        matchPrefix: "/admin/dashboard",
+      });
+    }
+    expect(labels(organizer)).not.toContain("Dashboard");
+  });
+
+  it("keeps Eventos active on the list and on its sub-routes", () => {
+    const [events] = getNavSections(organizer);
+    expect(events.items[0]).toMatchObject({
       href: "/organizer",
       icon: "dashboard",
-    });
-    expect(overview.items[0].matchPrefix).toBeUndefined();
-    expect(events.items[0]).toMatchObject({
-      href: "/organizer/events/new",
       matchPrefix: "/organizer/events",
     });
   });

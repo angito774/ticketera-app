@@ -6,7 +6,6 @@ const valid = {
   eventSlug: "mock-event",
   selection: { quantities: { general: 2 }, seats: { oriente: ["oriente-A-1"] } },
   buyer: { fullName: "  Ana Pérez ", email: "ANA@Example.com" },
-  paymentMethod: "yape",
 };
 
 const parse = (patch: Record<string, unknown> = {}) =>
@@ -49,16 +48,12 @@ describe("purchaseRequestSchema", () => {
     expect(parse({ eventSlug: "a".repeat(101) }).success).toBe(false);
   });
 
-  it("valida el método de pago", () => {
-    for (const method of ["card", "yape", "cash"]) {
-      expect(parse({ paymentMethod: method }).success).toBe(true);
-    }
-    expect(parse({ paymentMethod: "bitcoin" }).success).toBe(false);
-  });
-
-  it("no deja pasar datos de tarjeta en el payload", () => {
-    const result = parse({ card: { number: "4111111111111111" } });
-    expect(result.success && "card" in result.data).toBe(false);
+  it("no deja pasar método de pago ni datos de tarjeta en el payload", () => {
+    const result = parse({ paymentMethod: "card", card: { number: "4111111111111111" } });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect("card" in result.data).toBe(false);
+    expect("paymentMethod" in result.data).toBe(false);
   });
 
   it("limita cantidades: enteros entre 0 y el máximo", () => {

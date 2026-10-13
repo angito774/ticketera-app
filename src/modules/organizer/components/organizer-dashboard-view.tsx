@@ -1,26 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { parse } from "date-fns";
 import { AlertCircle, CalendarPlus, CheckCircle2, Plus } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EventsApiError, useEvents } from "@/modules/events/hooks/use-events";
 import { parseEventListParams, type EventListStatus } from "@/modules/events/schemas/event-list.schema";
 import { OrganizerEventsList } from "@/modules/organizer/components/organizer-events-list";
 import { SummaryKpis } from "@/modules/organizer/components/summary-kpis";
+import { ConnectStatusCard } from "@/modules/payments/components/connect-status-card";
+import type { OrganizationConnectView } from "@/modules/payments/types/connect.types";
 
 export type SaveNotice = "draft" | "published" | null;
 
 interface OrganizerDashboardViewProps {
   notice: SaveNotice;
+  canFeature: boolean;
+  connectViews: OrganizationConnectView[];
+  connectNotice: "return" | "refresh" | null;
 }
+
+const CONNECT_NOTICE_TEXT = {
+  return: "Revisamos el estado de tu cuenta de pagos.",
+  refresh: "El enlace de configuración expiró. Genera uno nuevo con el botón de tu cuenta de pagos.",
+};
 
 const FILTERS: { key: EventListStatus; label: string }[] = [
   { key: "all", label: "Todos" },
   { key: "published", label: "Publicados" },
   { key: "draft", label: "Borradores" },
+  { key: "cancelled", label: "Cancelados" },
 ];
 
 const NOTICE_TEXT: Record<Exclude<SaveNotice, null>, string> = {
@@ -28,7 +42,7 @@ const NOTICE_TEXT: Record<Exclude<SaveNotice, null>, string> = {
   published: "Evento publicado.",
 };
 
-const CREATE_CLASSES = "h-11 gap-2 rounded-xl px-4 text-[0.9375rem] font-semibold";
+const CREATE_CLASSES = "h-11 gap-2 md:h-10 rounded-xl px-4 text-[0.9375rem] font-semibold";
 
 const BASE_PARAMS = parseEventListParams({});
 
@@ -54,7 +68,7 @@ function ListSkeleton() {
 }
 
 /** Resumen del organizador: KPIs y eventos reales desde la API. */
-export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) {
+export function OrganizerDashboardView({ notice, canFeature, connectViews, connectNotice }: OrganizerDashboardViewProps) {
   const [filter, setFilter] = useState<EventListStatus>("all");
   const { data, error, isPending, isError, isPlaceholderData, refetch, isRefetching } = useEvents({
     ...BASE_PARAMS,
@@ -62,19 +76,30 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
     status: filter,
   });
 
-  const events = data?.events ?? [];
+  const [name, setName] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const events = useMemo(() => {
+    const term = name.trim().toLowerCase();
+    return (data?.events ?? []).filter((event) => {
+      const day = new Date(event.startsAt).toLocaleDateString("en-CA");
+      return (
+        (!term || event.title.toLowerCase().includes(term)) &&
+        (!dateFrom || day >= dateFrom) &&
+        (!dateTo || day <= dateTo)
+      );
+    });
+  }, [data, name, dateFrom, dateTo]);
+  const hasFilters = name.trim() !== "" || dateFrom !== "" || dateTo !== "" || filter !== "all";
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight lg:text-4xl">Resumen</h1>
+          <h1 className="text-2xl font-bold tracking-tight lg:text-4xl">Eventos</h1>
           <p className="text-muted-foreground">Así van las ventas de tus eventos.</p>
         </div>
-        <Link href="/organizer/events/new" className={cn(buttonVariants(), CREATE_CLASSES)}>
-          <Plus className="size-4.5" aria-hidden="true" />
-          Crear evento
-        </Link>
       </div>
 
       {notice && (
@@ -82,6 +107,22 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
           <CheckCircle2 className="size-5" aria-hidden="true" />
           {NOTICE_TEXT[notice]}
         </p>
+      )}
+
+      {connectViews.length > 0 && (
+        <section aria-labelledby="connect-heading" className="flex flex-col gap-3">
+          <h2 id="connect-heading" className="text-lg font-semibold lg:text-xl">
+            Cuenta de pagos
+          </h2>
+          {connectNotice && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {CONNECT_NOTICE_TEXT[connectNotice]}
+            </p>
+          )}
+          {connectViews.map((view) => (
+            <ConnectStatusCard key={view.organizationId} view={view} />
+          ))}
+        </section>
       )}
 
       <SummaryKpis
@@ -94,7 +135,40 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
       <section className="flex flex-col gap-4 rounded-3xl border-0 bg-transparent lg:border lg:bg-card lg:py-5">
         <div className="flex flex-wrap items-center justify-between gap-3 lg:px-5">
           <h2 className="text-lg font-semibold lg:text-xl">Mis eventos</h2>
-          <div className="grid w-full grid-cols-3 rounded-xl bg-muted p-1 sm:w-auto lg:bg-background lg:ring-1 lg:ring-border">
+          <Link href="/organizer/events/new" className={cn(buttonVariants(), CREATE_CLASSES)}>
+            <Plus className="size-4.5" aria-hidden="true" />
+            Crear evento
+          </Link>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 lg:px-5">
+          <Input
+            type="search"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Buscar por nombre"
+            aria-label="Buscar por nombre"
+            className="h-11 sm:max-w-64 md:h-10"
+          />
+          <DatePicker
+            value={dateFrom}
+            onChange={(value) => {
+              setDateFrom(value);
+              if (value && dateTo && value > dateTo) setDateTo("");
+            }}
+            placeholder="Desde"
+            aria-label="Fecha desde"
+            className="sm:w-44"
+          />
+          <DatePicker
+            value={dateTo}
+            onChange={setDateTo}
+            placeholder="Hasta"
+            aria-label="Fecha hasta"
+            fromDate={dateFrom ? parse(dateFrom, "yyyy-MM-dd", new Date()) : undefined}
+            className="sm:w-44"
+          />
+          <div className="grid w-full grid-cols-2 sm:grid-cols-4 rounded-xl bg-muted p-1 sm:w-auto lg:bg-background lg:ring-1 lg:ring-border">
             {FILTERS.map((item) => (
               <button
                 key={item.key}
@@ -102,7 +176,7 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
                 aria-pressed={filter === item.key}
                 onClick={() => setFilter(item.key)}
                 className={cn(
-                  "h-11 cursor-pointer rounded-lg px-3 text-sm transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring lg:h-9",
+                  "h-9 cursor-pointer rounded-lg px-3 text-sm md:h-8 transition-all outline-none focus-visible:ring-3 focus-visible:ring-ring",
                   filter === item.key ? "bg-background font-semibold shadow-sm lg:bg-foreground lg:text-background" : "font-medium text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -110,6 +184,21 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
               </button>
             ))}
           </div>
+          {hasFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 px-3 md:h-10"
+              onClick={() => {
+                setName("");
+                setDateFrom("");
+                setDateTo("");
+                setFilter("all");
+              }}
+            >
+              Limpiar
+            </Button>
+          )}
         </div>
 
         {isPending ? (
@@ -132,14 +221,12 @@ export function OrganizerDashboardView({ notice }: OrganizerDashboardViewProps) 
             <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-primary">
               <CalendarPlus className="size-6" aria-hidden="true" />
             </span>
-            <span className="font-semibold">No hay eventos en este filtro</span>
-            <Link href="/organizer/events/new" className={cn(buttonVariants(), CREATE_CLASSES)}>
-              Crear evento
-            </Link>
+            <span className="font-semibold">No hay eventos con estos filtros</span>
           </div>
         ) : (
           <OrganizerEventsList
             events={events}
+            canFeature={canFeature}
             className={cn("transition-opacity", isPlaceholderData && "opacity-60")}
           />
         )}

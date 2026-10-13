@@ -51,6 +51,14 @@ describe("parseEventListParams", () => {
     expect(parseEventListParams({ scope: "organizer", status: "zzz" }).status).toBe("all");
   });
 
+  it("status=cancelled solo aplica con scope organizer", () => {
+    expect(parseEventListParams({ scope: "organizer", status: "cancelled" }).status).toBe("cancelled");
+    expect(parseEventListParams({ status: "cancelled" }).status).toBe("all");
+    const p = parseEventListParams({ scope: "organizer", status: "cancelled" });
+    expect(eventListToSearchParams(p).get("status")).toBe("cancelled");
+    expect(fromQuery(eventListToSearchParams(p).toString())).toEqual(p);
+  });
+
   it("featured solo acepta true", () => {
     expect(parseEventListParams({ featured: "true" }).featured).toBe(true);
     expect(parseEventListParams({ featured: "false" }).featured).toBeUndefined();

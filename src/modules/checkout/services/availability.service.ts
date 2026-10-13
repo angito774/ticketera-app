@@ -6,6 +6,7 @@ import {
   mapRemainingByZone,
   mapSoldSeatIds,
 } from "@/modules/checkout/services/order-read.mapping";
+import { releaseStaleOrders } from "@/modules/checkout/services/reservation.service";
 import { getEventById } from "@/modules/events/services/events.service";
 import type { EventAvailability } from "@/modules/tickets/services/availability-overlay";
 import { getVenueLayout } from "@/modules/tickets/services/venues.service";
@@ -21,6 +22,8 @@ export async function getEventAvailability(slug: string): Promise<EventAvailabil
     .where(and(eq(events.slug, slug), eq(events.status, "published")))
     .limit(1);
   if (!event) return null;
+
+  await releaseStaleOrders({ eventId: event.id }).catch(() => 0);
 
   const [types, soldSeats] = await Promise.all([
     db

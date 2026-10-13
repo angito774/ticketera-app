@@ -168,7 +168,7 @@ export function SeatMap({ zone, selectedSeatIds, maxReached, onToggleSeat, class
                           textAnchor="middle"
                           dominantBaseline="central"
                           aria-hidden="true"
-                          className="fill-white/55 text-[10px] font-semibold"
+                          className="fill-white/65 text-[10px] font-semibold"
                         >
                           {row.label}
                         </text>

@@ -9,6 +9,8 @@ import { ArrowLeft, Info, Loader2 } from "lucide-react";
 import { FIELD_INPUT_CLASSES, FormField, fieldA11yProps } from "@/components/form-field";
 import { StickyBottomBar } from "@/components/sticky-bottom-bar";
 import { buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { createEventAction, updateEventAction } from "@/modules/organizer/actions/event.actions";
@@ -38,6 +40,8 @@ interface EventEditorProps {
   options: EventFormOptions;
   /** Sin initial: crear evento. Con initial: editar ese evento. */
   initial?: EventEditData;
+  /** Solo quien puede destacar eventos ve el checkbox de portada. */
+  canFeature: boolean;
 }
 
 type SimpleField = "organizationId" | "title" | "categoryId" | "description" | "date" | "time" | "venueId" | "coverImageUrl";
@@ -105,7 +109,7 @@ function errorSummaryItems(errors: EventFormErrors): { href: string; message: st
   return items;
 }
 
-export function EventEditor({ options, initial }: EventEditorProps) {
+export function EventEditor({ options, initial, canFeature }: EventEditorProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pending, startTransition] = useTransition();
@@ -339,13 +343,12 @@ export function EventEditor({ options, initial }: EventEditorProps) {
           <Section title="Fecha y lugar">
             <div className="grid grid-cols-2 gap-4">
               <FormField id={fieldId("date")} label="Fecha" error={errors.date}>
-                <Input
+                <DatePicker
                   {...fieldA11yProps(fieldId("date"), errors.date)}
-                  type="date"
                   value={values.date}
                   disabled={lockOther}
-                  onChange={(event) => change({ date: event.target.value })}
-                  className={FIELD_INPUT_CLASSES}
+                  onChange={(date) => change({ date })}
+                  className="h-12 rounded-xl px-3.5 text-base aria-invalid:bg-destructive/5 md:h-12 md:text-[0.9375rem]"
                 />
               </FormField>
               <FormField id={fieldId("time")} label="Hora de inicio" error={errors.time}>
@@ -401,6 +404,29 @@ export function EventEditor({ options, initial }: EventEditorProps) {
               <p className="text-sm text-muted-foreground">Elige un recinto para configurar las entradas de sus zonas.</p>
             )}
           </Section>
+
+          {canFeature && (
+            <Section title="Portada">
+              <div className="flex min-h-11 items-start gap-3 py-1">
+                <Checkbox
+                  id="event-featured"
+                  aria-describedby="event-featured-description"
+                  checked={values.featured}
+                  disabled={lockContent}
+                  onCheckedChange={(checked) => change({ featured: checked === true })}
+                  className="mt-0.5"
+                />
+                <div className="flex flex-col">
+                  <label htmlFor="event-featured" className="text-sm font-medium">
+                    Destacar en la portada
+                  </label>
+                  <span id="event-featured-description" className="text-xs text-muted-foreground">
+                    Aparece en el carousel de la página principal cuando el evento esté publicado
+                  </span>
+                </div>
+              </div>
+            </Section>
+          )}
 
           <p role="status" className="sr-only">
             {savingText}

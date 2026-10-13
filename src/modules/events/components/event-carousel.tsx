@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { buttonVariants } from "@/components/ui/button";
 import {
   Carousel,
   CarouselContent,
@@ -5,6 +8,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { PageSection } from "@/components/page-section";
 import { EventCard } from "@/modules/events/components/event-card";
 import { cn } from "@/lib/utils";
 import type { Event } from "@/modules/events/types/event.types";
@@ -12,12 +16,20 @@ import type { Event } from "@/modules/events/types/event.types";
 interface EventCarouselProps {
   events: Event[];
   title?: string;
+  viewAllHref?: string;
   className?: string;
 }
 
+const CAROUSEL_OPTIONS = {
+  breakpoints: { "(prefers-reduced-motion: reduce)": { duration: 0 } },
+};
+
+const ARROW_CLASS = "static inset-auto my-0 size-11 shrink-0";
+
 export function EventCarousel({
   events,
-  title = "Eventos destacados",
+  title = "Destacados",
+  viewAllHref,
   className,
 }: EventCarouselProps) {
   if (events.length === 0) {
@@ -25,9 +37,35 @@ export function EventCarousel({
   }
 
   return (
-    <section className={cn("relative", className)}>
-      <h2 className="text-2xl font-bold md:text-3xl">{title}</h2>
-      <Carousel className="mt-6" aria-label={title}>
+    <Carousel
+      opts={CAROUSEL_OPTIONS}
+      aria-label={title}
+      className={cn("w-full", className)}
+    >
+      <PageSection
+        id="featured-events-title"
+        title={title}
+        action={
+          <div className="flex items-center gap-2">
+            {viewAllHref ? (
+              <Link
+                href={viewAllHref}
+                className={cn(buttonVariants({ variant: "link" }), "min-h-11")}
+              >
+                Ver todos
+              </Link>
+            ) : null}
+            <CarouselPrevious
+              aria-label="Evento anterior"
+              className={ARROW_CLASS}
+            />
+            <CarouselNext
+              aria-label="Siguiente evento"
+              className={ARROW_CLASS}
+            />
+          </div>
+        }
+      >
         <CarouselContent>
           {events.map((event, index) => (
             <CarouselItem
@@ -39,9 +77,7 @@ export function EventCarousel({
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious aria-label="Evento anterior" />
-        <CarouselNext aria-label="Siguiente evento" />
-      </Carousel>
-    </section>
+      </PageSection>
+    </Carousel>
   );
 }

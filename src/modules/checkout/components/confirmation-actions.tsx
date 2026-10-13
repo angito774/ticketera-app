@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Printer } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AddToCalendarButton } from "@/modules/checkout/components/add-to-calendar-button";
 import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
+import { DownloadTicketsButton } from "@/modules/tickets/components/download-tickets-button";
+import { canDownloadTicketPdf } from "@/modules/tickets/services/ticket-pdf.mapping";
 
 interface ConfirmationActionsProps {
-  order: Pick<OrderView, "number" | "tickets">;
+  order: Pick<OrderView, "id" | "number" | "status" | "eventStatus" | "tickets">;
   event: Pick<EventDetail, "title" | "date" | "venue" | "address" | "city">;
   className?: string;
 }
@@ -29,10 +31,9 @@ export function ConfirmationActions({ order, event, className }: ConfirmationAct
         <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
       <AddToCalendarButton order={order} event={event} className={SECONDARY_CLASSES} />
-      <button type="button" onClick={() => window.print()} className={SECONDARY_CLASSES}>
-        <Printer className="size-4.5" aria-hidden="true" />
-        Imprimir
-      </button>
+      {canDownloadTicketPdf(order) && (
+        <DownloadTicketsButton orderId={order.id} orderNumber={order.number} className={SECONDARY_CLASSES} />
+      )}
     </div>
   );
 }

@@ -33,6 +33,7 @@ export interface EventFormValues {
   venueId: string;
   coverImageUrl: string;
   organizationId: string;
+  featured: boolean;
   tiers: TierFormValues[];
 }
 
@@ -63,6 +64,7 @@ export const EMPTY_EVENT_FORM: EventFormValues = {
   venueId: "",
   coverImageUrl: "",
   organizationId: "",
+  featured: false,
   tiers: [],
 };
 
@@ -171,6 +173,7 @@ export interface EventSaveInput {
   startsAt: string | null;
   venueId: string | null;
   coverImageUrl: string | null;
+  featured?: boolean;
   tiers: { zoneId: string; priceCents: number; quantity: number | null }[];
 }
 
@@ -185,6 +188,7 @@ export function toEventSaveInput(values: EventFormValues, mode: EventFormMode, z
     startsAt: toStartsAt(values.date, values.time),
     venueId: values.venueId.trim() || null,
     coverImageUrl: values.coverImageUrl.trim() || null,
+    featured: values.featured,
     tiers: values.tiers
       .filter((tier) => tier.enabled)
       .map((tier) => ({
@@ -213,6 +217,7 @@ const baseSaveSchema = z.object({
   startsAt: z.iso.datetime({ offset: true }).nullable(),
   venueId: id.nullable(),
   coverImageUrl: nullableText(500).refine((value) => value === null || isAllowedImageUrl(value), COVER_ERROR),
+  featured: z.boolean().optional(),
   tiers: z
     .array(
       z.object({

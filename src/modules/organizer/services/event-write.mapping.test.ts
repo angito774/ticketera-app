@@ -9,13 +9,31 @@ import {
 } from "@/modules/organizer/services/event-seats";
 import {
   EventRuleError,
+  assertPaymentsReady,
   assertPublishable,
   buildTicketTypeRows,
   draftGuardSql,
   nextSlug,
   requireEventColumns,
+  resolveFeatured,
   type ZoneInfo,
 } from "@/modules/organizer/services/event-write.mapping";
+
+describe("resolveFeatured", () => {
+  it("persiste el valor solo si el actor puede destacar", () => {
+    expect(resolveFeatured(true, true)).toEqual({ featured: true });
+    expect(resolveFeatured(true, false)).toEqual({ featured: false });
+  });
+
+  it("ignora el valor sin permiso", () => {
+    expect(resolveFeatured(false, true)).toEqual({});
+    expect(resolveFeatured(false, false)).toEqual({});
+  });
+
+  it("no toca la columna si no se envía", () => {
+    expect(resolveFeatured(true, undefined)).toEqual({});
+  });
+});
 
 const NOW = new Date("2026-10-02T12:00:00Z");
 const zones: ZoneInfo[] = [
@@ -168,5 +186,18 @@ describe("assertPublishable", () => {
   it("zona numerada no necesita cantidad", () => {
     const numbered = input({ tiers: [{ zoneId: "z-num", priceCents: 100, quantity: null }] });
     expect(() => assertPublishable(numbered, zones, NOW)).not.toThrow();
+  });
+});
+
+describe("assertPaymentsReady", () => {
+  it("permite publicar con la cuenta de pagos activa", () => {
+    expect(() => assertPaymentsReady("active")).not.toThrow();
+  });
+
+  it.each(["not_started", "pending", "restricted"] as const)("bloquea con estado %s", (status) => {
+    expect(() => assertPaymentsReady(status)).toThrow(EventRuleError);
+    expect(() => assertPaymentsReady(status)).toThrow(
+      "Conecta tu cuenta de pagos para publicar eventos",
+    );
   });
 });

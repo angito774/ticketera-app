@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Printer } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 import { formatDateBadge, formatLongDate, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,8 @@ import {
 } from "@/modules/checkout/components/order-ticket-card";
 import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
+import { DownloadTicketsButton } from "@/modules/tickets/components/download-tickets-button";
+import { canDownloadTicketPdf } from "@/modules/tickets/services/ticket-pdf.mapping";
 
 interface TicketViewerProps {
   order: OrderView;
@@ -123,10 +125,11 @@ export function TicketViewer({ order, event, className }: TicketViewerProps) {
         </dl>
 
         <div className="flex w-full gap-2 print:hidden">
-          <button type="button" onClick={() => window.print()} className={ACTION_CLASSES}>
-            <Printer className="size-4.5" aria-hidden="true" />
-            <span>Imprimir</span>
-          </button>
+          {canDownloadTicketPdf(order) && (
+            <div className="flex min-w-0 flex-1 flex-col">
+              <DownloadTicketsButton orderId={order.id} orderNumber={order.number} className={ACTION_CLASSES} />
+            </div>
+          )}
           {event && <AddToCalendarButton order={order} event={event} label="Calendario" className={ACTION_CLASSES} />}
         </div>
       </div>

@@ -10,7 +10,7 @@ import { getEventById } from "@/modules/events/services/events.service";
 export async function generateMetadata({ params }: PageProps<"/events/[id]/confirmation">): Promise<Metadata> {
   const { id } = await params;
   const event = getEventById(id);
-  return { title: event ? `Compra confirmada · ${event.title} · Ticketera` : "Ticketera" };
+  return { title: event ? `Tu compra · ${event.title} · Ticketera` : "Ticketera" };
 }
 
 export default async function ConfirmationPage({

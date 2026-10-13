@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatLongDate, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DecorativeQr } from "@/modules/checkout/components/decorative-qr";
+import { shortTicketCode } from "@/modules/checkout/services/order-read.mapping";
 import type { OrderTicketView, OrderView } from "@/modules/checkout/services/order-read.service";
 import { EVENT_CATEGORY_LABELS, type Event } from "@/modules/events/types/event.types";
 
@@ -36,9 +37,7 @@ export function qrSeedFor(qrCode: string): number {
   return hash;
 }
 
-export function shortTicketCode(qrCode: string): string {
-  return qrCode.replace(/-/g, "").slice(0, 8).toUpperCase();
-}
+export { shortTicketCode };
 
 /** Entrada con aspecto de ticket: datos del evento a la izquierda y QR (paginable) a la derecha. */
 export function OrderTicketCard({ order, event, className }: OrderTicketCardProps) {

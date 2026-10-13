@@ -4,7 +4,7 @@ import {
   type AuthSubject,
 } from "@/modules/auth/services/permissions";
 
-export type NavIcon = "dashboard" | "plus" | "building" | "users" | "contact" | "shield" | "external";
+export type NavIcon = "dashboard" | "chart" | "plus" | "building" | "users" | "contact" | "shield" | "wallet" | "external";
 
 export interface NavItem {
   href: string;
@@ -27,14 +27,12 @@ export const ROLE_LABEL: Record<AppRole, string> = {
 
 export function getNavSections(subject: AuthSubject): NavSection[] {
   const sections: NavSection[] = [
-    { items: [{ href: "/organizer", label: "Resumen", icon: "dashboard" }] },
     {
-      title: "Eventos",
       items: [
         {
-          href: "/organizer/events/new",
-          label: "Crear evento",
-          icon: "plus",
+          href: "/organizer",
+          label: "Eventos",
+          icon: "dashboard",
           matchPrefix: "/organizer/events",
         },
       ],
@@ -43,6 +41,12 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
 
   if (can(subject, "members:manage")) {
     const items: NavItem[] = [
+      {
+        href: "/admin/dashboard",
+        label: "Dashboard",
+        icon: "chart",
+        matchPrefix: "/admin/dashboard",
+      },
       { href: "/admin", label: "Organizaciones", icon: "building" },
       {
         href: "/admin/users",
@@ -63,6 +67,14 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
         label: "Roles",
         icon: "shield",
         matchPrefix: "/admin/roles",
+      });
+    }
+    if (can(subject, "organizations:manage")) {
+      items.push({
+        href: "/admin/payments",
+        label: "Pagos",
+        icon: "wallet",
+        matchPrefix: "/admin/payments",
       });
     }
     sections.push({ title: "Administración", items });

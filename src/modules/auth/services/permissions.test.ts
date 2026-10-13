@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ASSIGNABLE_PERMISSIONS,
   assignableRoles,
   can,
   highestRole,
@@ -64,6 +65,18 @@ describe("can", () => {
   it("restricts organization and role management to the super admin", () => {
     expect(can(admin, "organizations:manage")).toBe(false);
     expect(can(admin, "roles:manage")).toBe(false);
+  });
+
+  it("restricts events:feature to the super admin", () => {
+    expect(can(superAdmin, "events:feature")).toBe(true);
+    expect(can(admin, "events:feature", "org_a")).toBe(false);
+    expect(can(organizer, "events:feature")).toBe(false);
+    const sneaky: AuthSubject = {
+      isSuperAdmin: false,
+      memberships: [member("org_a", "x", ["events:feature"])],
+    };
+    expect(can(sneaky, "events:feature", "org_a")).toBe(false);
+    expect(ASSIGNABLE_PERMISSIONS).not.toContain("events:feature");
   });
 
   it("ignores non-assignable permissions even if a role carries them", () => {

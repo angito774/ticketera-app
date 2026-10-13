@@ -20,6 +20,8 @@ interface ConfirmDeleteDialogProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
+  pendingLabel?: string;
+  cancelLabel?: string;
   onConfirm: () => Promise<ConfirmResult>;
   onSuccess?: () => void;
 }
@@ -30,6 +32,8 @@ export function ConfirmDeleteDialog({
   title,
   description,
   confirmLabel,
+  pendingLabel = "Eliminando...",
+  cancelLabel = "Cancelar",
   onConfirm,
   onSuccess,
 }: ConfirmDeleteDialogProps) {
@@ -71,7 +75,7 @@ export function ConfirmDeleteDialog({
             disabled={pending}
             onClick={() => onOpenChange(false)}
           >
-            Cancelar
+            {cancelLabel}
           </Button>
           <Button
             type="button"
@@ -80,7 +84,7 @@ export function ConfirmDeleteDialog({
             disabled={pending}
             onClick={handleConfirm}
           >
-            {pending ? "Eliminando..." : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

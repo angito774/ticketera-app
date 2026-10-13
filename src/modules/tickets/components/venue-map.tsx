@@ -182,14 +182,14 @@ export function VenueMap({ layout, activeZoneId, highlightedZoneId = null, onSel
                   width={pillWidth}
                   height={14}
                   rx={7}
-                  className={isSoldOut ? "fill-white/15" : "fill-brand-deep/80"}
+                  className="fill-brand-deep/80"
                 />
                 <text
                   x={shape.label.x}
                   y={shape.label.y + 9}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  className={cn("text-[9px] font-semibold", isSoldOut ? "fill-white/60" : "fill-white")}
+                  className={cn("text-[9px] font-semibold", isSoldOut ? "fill-white/75" : "fill-white")}
                 >
                   {price}
                 </text>

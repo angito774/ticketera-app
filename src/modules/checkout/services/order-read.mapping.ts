@@ -3,6 +3,7 @@ import type { VenueLayout } from "@/modules/tickets/types/venue.types";
 
 export type OrderStatusView = "paid" | "pending" | "cancelled" | "refunded";
 export type TicketStatusView = "valid" | "redeemed" | "cancelled";
+export type EventStatusView = "draft" | "published" | "cancelled";
 
 export interface OrderTicketView {
   id: string;
@@ -17,6 +18,7 @@ export interface OrderView {
   number: string;
   eventSlug: string;
   eventTitle: string;
+  eventStatus: EventStatusView;
   createdAt: string;
   total: number;
   status: OrderStatusView;
@@ -29,6 +31,7 @@ export interface OrderRow {
   id: string;
   eventSlug: string;
   eventTitle: string;
+  eventStatus: EventStatusView;
   createdAt: Date;
   totalAmountCents: number;
   status: OrderStatusView;
@@ -55,6 +58,10 @@ export function seatLabelOf(rowLabel: string | null, seatNumber: number | null):
   return `Fila ${rowLabel} · Asiento ${seatNumber}`;
 }
 
+export function shortTicketCode(qrCode: string): string {
+  return qrCode.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
 export function buildOrderViews(
   orders: OrderRow[],
   tickets: TicketRow[],
@@ -79,6 +86,7 @@ export function buildOrderViews(
     number: orderNumberFromId(order.id),
     eventSlug: order.eventSlug,
     eventTitle: order.eventTitle,
+    eventStatus: order.eventStatus,
     createdAt: toIso(order.createdAt),
     total: order.totalAmountCents / 100,
     status: order.status,

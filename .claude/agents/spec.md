@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Redacta la especificación SDD de una feature antes de escribir código: requisitos, criterios de aceptación verificables, contratos de datos, inventario de reuso (qué ya existe en el repo y en shadcn/ui) y un plan de tareas alcanzable con archivos asignados y grupos de paralelismo. También ajusta specs existentes cuando el reviewer reporta un SPEC_ISSUE.
+description: "Redacta la especificación SDD de una feature antes de escribir código: requisitos, criterios de aceptación verificables, contratos de datos, inventario de reuso (qué ya existe en el repo y en shadcn/ui) y un plan de tareas alcanzable con archivos asignados y grupos de paralelismo. También ajusta specs existentes cuando el reviewer reporta un SPEC_ISSUE."
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

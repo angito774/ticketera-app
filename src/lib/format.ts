@@ -81,3 +81,34 @@ export function formatDateBadge(iso: string): { month: string; day: string } {
     day: dayFormatter.format(date),
   };
 }
+
+const decimalComma = (value: number, fractionDigits: number): string =>
+  value.toFixed(fractionDigits).replace(".", ",");
+
+const trimTrailingZero = (text: string): string => text.replace(/,0$/, "");
+
+/** Monto en céntimos para ejes de gráficos: "S/ 850", "S/ 12 mil", "S/ 1,5 M" */
+export function formatCompactPrice(cents: number): string {
+  const soles = Math.abs(cents) / 100;
+  const sign = cents < 0 ? "-" : "";
+  if (soles < 1000) return `${sign}S/ ${Math.round(soles)}`;
+  const thousands = Math.round((soles / 1000) * 10) / 10;
+  if (thousands < 1000) {
+    return `${sign}S/ ${trimTrailingZero(decimalComma(thousands, 1))} mil`;
+  }
+  const millions = Math.round((soles / 1_000_000) * 10) / 10;
+  return `${sign}S/ ${trimTrailingZero(decimalComma(millions, 1))} M`;
+}
+
+/** 0.734 -> "73 %" */
+export function formatPercent(ratio: number, fractionDigits = 0): string {
+  return `${decimalComma(ratio * 100, fractionDigits)} %`;
+}
+
+/** "+12,3 %", "-4,0 %", "0,0 %" o "—" cuando no hay base de comparación */
+export function formatDeltaPct(deltaPct: number | null): string {
+  if (deltaPct === null || !Number.isFinite(deltaPct)) return "—";
+  const text = decimalComma(Math.abs(deltaPct), 1);
+  if (Number(text.replace(",", ".")) === 0) return `${text} %`;
+  return `${deltaPct > 0 ? "+" : "-"}${text} %`;
+}

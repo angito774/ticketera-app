@@ -1,6 +1,5 @@
 import { z, type ZodType } from "zod";
 
-import { PAYMENT_METHODS, type PaymentMethod } from "@/modules/checkout/schemas/checkout.schema";
 import { MAX_TICKETS_PER_ZONE } from "@/modules/tickets/services/venues.service";
 import type { PurchaseSelection } from "@/modules/tickets/store/purchase.store";
 
@@ -16,7 +15,6 @@ export interface PurchaseRequest {
     documentNumber?: string;
     phone?: string;
   };
-  paymentMethod: PaymentMethod;
 }
 
 const zoneKey = z.string().max(MAX_KEY_LENGTH);
@@ -68,5 +66,4 @@ export const purchaseRequestSchema: ZodType<PurchaseRequest> = z.object({
   eventSlug: z.string().trim().min(1).max(100),
   selection: selectionSchema,
   buyer: buyerSchema,
-  paymentMethod: z.enum(PAYMENT_METHODS),
 });

@@ -2,14 +2,12 @@
 
 import { useMemo, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { CircleAlert, Loader2, Lock, Ticket } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { StickyBottomBar } from "@/components/sticky-bottom-bar";
 import { buttonVariants } from "@/components/ui/button";
-import { useCountdown } from "@/hooks/use-countdown";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -40,34 +38,24 @@ const FIELD_ORDER: CheckoutField[] = [
   "email",
   "documentNumber",
   "phone",
-  "card.number",
-  "card.expiry",
-  "card.cvv",
-  "card.holder",
   "acceptedTerms",
 ];
 
-const RESERVATION_MINUTES = 10;
-
 export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
-  const router = useRouter();
   const hydrated = useHydrated();
   const ticketsHref = `/events/${event.id}/tickets`;
 
   const purchase = usePurchaseStore(
-    useShallow(({ eventId, quantities, seats, clear }) => ({ eventId, quantities, seats, clear }))
+    useShallow(({ eventId, quantities, seats }) => ({ eventId, quantities, seats }))
   );
   const { user } = useUser();
 
-  // Tras pagar se congela la selección: el store se limpia pero el resumen no debe vaciarse mientras se navega.
-  const [paidSelection, setPaidSelection] = useState<PurchaseSelection | null>(null);
-  const selection = useMemo(
-    () => paidSelection ?? { quantities: purchase.quantities, seats: purchase.seats },
-    [paidSelection, purchase.quantities, purchase.seats]
+  const selection = useMemo<PurchaseSelection>(
+    () => ({ quantities: purchase.quantities, seats: purchase.seats }),
+    [purchase.quantities, purchase.seats]
   );
   const summary = useMemo(() => buildPurchaseSummary(layout, selection), [layout, selection]);
-  const hasSelection =
-    hydrated && (paidSelection !== null || purchase.eventId === event.id) && summary.ticketCount > 0;
+  const hasSelection = hydrated && purchase.eventId === event.id && summary.ticketCount > 0;
 
   const [values, setValues] = useState<CheckoutFormValues>(EMPTY_CHECKOUT_VALUES);
   // Campos que el usuario ya dejó: se marcan en rojo si quedaron incompletos.
@@ -75,11 +63,9 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   const [wasSubmitted, setWasSubmitted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [expiresAt] = useState<string>(() =>
-    new Date(Date.now() + RESERVATION_MINUTES * 60_000).toISOString()
-  );
   const [prefilled, setPrefilled] = useState(false);
-  const isPaying = isPending || paidSelection !== null;
+  const [redirecting, setRedirecting] = useState(false);
+  const isPaying = isPending || redirecting;
 
   if (user && !prefilled) {
     setPrefilled(true);
@@ -89,9 +75,6 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
       email: current.email || user.primaryEmailAddress?.emailAddress || "",
     }));
   }
-
-  const countdown = useCountdown(expiresAt);
-  const isExpired = Boolean(expiresAt) && countdown.isExpired;
 
   // Errores en vivo: antes de intentar pagar, solo de los campos tocados; después, de todos.
   const allErrors = useMemo(() => getFieldErrors(values), [values]);
@@ -110,7 +93,7 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
 
   const handleSubmit = (formEvent: FormEvent<HTMLFormElement>) => {
     formEvent.preventDefault();
-    if (isPaying || isExpired) return;
+    if (isPaying) return;
 
     setWasSubmitted(true);
     const firstInvalid = FIELD_ORDER.find((field) => allErrors[field]);
@@ -132,7 +115,6 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
             documentNumber: values.documentNumber,
             phone: values.phone,
           },
-          paymentMethod: values.paymentMethod,
         });
       } catch {
         setServerError("No pudimos completar tu compra. Inténtalo de nuevo.");
@@ -142,14 +124,9 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
         setServerError(result.error);
         return;
       }
-      setPaidSelection(selection);
-      purchase.clear();
-      router.push(`/events/${event.id}/confirmation?order=${result.orderId}`);
+      setRedirecting(true);
+      window.location.assign(result.checkoutUrl);
     });
-  };
-
-  const restartReservation = () => {
-    router.push(ticketsHref);
   };
 
   if (!hydrated) {
@@ -173,7 +150,7 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   }
 
   // El botón no se deshabilita por datos incompletos: al pulsarlo marca en rojo lo que falta.
-  const canPay = !isExpired && !isPaying;
+  const canPay = !isPaying;
   const payLabel = `Pagar ${formatPrice(summary.total)}`;
   const payButton = (buttonClassName: string) => (
     <button
@@ -223,7 +200,7 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
       )}
     >
       <div className="flex flex-col gap-4 lg:gap-6">
-        <ReservationNotice timeLeft={countdown.label} isExpired={isExpired} onRestart={restartReservation} />
+        <ReservationNotice />
         <CheckoutSummaryCollapsible event={event} summary={summary} ticketsHref={ticketsHref} />
         <CheckoutForm values={values} errors={errors} onChange={handleChange} onFieldBlur={handleFieldBlur} />
         {serverError && (

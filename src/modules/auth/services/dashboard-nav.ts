@@ -41,6 +41,12 @@ export function getNavSections(subject: AuthSubject): NavSection[] {
 
   if (can(subject, "members:manage")) {
     const items: NavItem[] = [
+      {
+        href: "/admin/dashboard",
+        label: "Panel",
+        icon: "dashboard",
+        matchPrefix: "/admin/dashboard",
+      },
       { href: "/admin", label: "Organizaciones", icon: "building" },
       {
         href: "/admin/users",

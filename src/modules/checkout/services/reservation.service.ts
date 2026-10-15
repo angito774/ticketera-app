@@ -26,6 +26,7 @@ import {
   releaseSeatsSql,
   reserveGeneralSql,
   type PricedItem,
+  type PurchaseBuyer,
 } from "@/modules/checkout/services/purchase.query";
 import {
   HOLD_GRACE_MINUTES,
@@ -62,8 +63,10 @@ function reservationStatements(
   items: PricedItem[],
   orderId: string,
   expiresAt: Date,
+  buyer?: PurchaseBuyer,
 ): Statement[] {
   const rows = buildPurchaseRows({
+    buyer,
     orderId,
     userId: actor.id,
     eventId,
@@ -99,6 +102,7 @@ export async function reserveOrder(args: {
   eventId: string;
   resolved: ResolvedZone[];
   items: PricedItem[];
+  buyer?: PurchaseBuyer;
   now?: Date;
 }): Promise<{ orderId: string; expiresAt: Date }> {
   const now = args.now ?? new Date();
@@ -113,6 +117,7 @@ export async function reserveOrder(args: {
     args.items,
     orderId,
     expiresAt,
+    args.buyer,
   );
   try {
     await db.batch(statements as [Statement, ...Statement[]]);

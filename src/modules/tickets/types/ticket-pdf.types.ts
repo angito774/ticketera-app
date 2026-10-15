@@ -18,6 +18,7 @@ export interface TicketPdfData {
   venueLine: string;
   addressLine: string;
   holderName: string;
+  holderDocument: string | null;
   totalLabel: string;
   minAgeLabel: string | null;
   pages: TicketPdfPage[];

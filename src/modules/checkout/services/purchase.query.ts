@@ -114,6 +114,13 @@ export interface PurchaseRows {
 }
 
 /** Filas de la reserva: orden pending, sus ítems y los holds (uno por asiento numerado; uno por zona general). */
+export interface PurchaseBuyer {
+  fullName: string;
+  email: string;
+  documentNumber?: string;
+  phone?: string;
+}
+
 export function buildPurchaseRows(args: {
   orderId: string;
   userId: string;
@@ -122,6 +129,7 @@ export function buildPurchaseRows(args: {
   items: PricedItem[];
   expiresAt: Date;
   newId: () => string;
+  buyer?: PurchaseBuyer;
 }): PurchaseRows {
   const orderItems: PurchaseRows["orderItems"] = [];
   const holds: PurchaseRows["holds"] = [];
@@ -150,6 +158,12 @@ export function buildPurchaseRows(args: {
       currency: "PEN",
       discountAmount: 0,
       expiresAt: args.expiresAt,
+      ...(args.buyer && {
+        buyerName: args.buyer.fullName,
+        buyerEmail: args.buyer.email,
+        buyerDocumentNumber: args.buyer.documentNumber ?? null,
+        buyerPhone: args.buyer.phone ?? null,
+      }),
     },
     orderItems,
     holds,

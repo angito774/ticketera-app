@@ -24,6 +24,7 @@ export interface OrderView {
   status: OrderStatusView;
   buyerName: string;
   buyerEmail: string;
+  buyerDocumentNumber: string | null;
   tickets: OrderTicketView[];
 }
 
@@ -35,6 +36,9 @@ export interface OrderRow {
   createdAt: Date;
   totalAmountCents: number;
   status: OrderStatusView;
+  buyerName?: string | null;
+  buyerEmail?: string | null;
+  buyerDocumentNumber?: string | null;
 }
 
 export interface TicketRow {
@@ -90,8 +94,9 @@ export function buildOrderViews(
     createdAt: toIso(order.createdAt),
     total: order.totalAmountCents / 100,
     status: order.status,
-    buyerName: buyer.name,
-    buyerEmail: buyer.email,
+    buyerName: order.buyerName || buyer.name,
+    buyerEmail: order.buyerEmail || buyer.email,
+    buyerDocumentNumber: order.buyerDocumentNumber || null,
     tickets: byOrder.get(order.id) ?? [],
   }));
 }

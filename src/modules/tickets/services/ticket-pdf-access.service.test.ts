@@ -37,6 +37,7 @@ function makeOrder(overrides: Partial<OrderView> = {}): OrderView {
     status: "paid",
     buyerName: "Ana Núñez",
     buyerEmail: "ana@example.com",
+    buyerDocumentNumber: null,
     tickets: [
       { id: "t-1", zoneName: "General", seatLabel: null, qrCode: "qr-token-uno-xxxxxxxxx", status: "valid" },
       { id: "t-2", zoneName: "General", seatLabel: null, qrCode: "qr-token-dos-xxxxxxxxx", status: "valid" },

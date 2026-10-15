@@ -32,6 +32,7 @@ function order(overrides: Partial<OrderView> = {}): OrderView {
     status: "paid",
     buyerName: "Ana Pérez",
     buyerEmail: "ana@example.com",
+    buyerDocumentNumber: "12345678",
     tickets: [ticket()],
     ...overrides,
   };
@@ -103,6 +104,7 @@ describe("buildTicketPdfData", () => {
     expect(data.venueLine).toBe("Estadio Nacional");
     expect(data.addressLine).toBe("Av. José Díaz s/n, Lima");
     expect(data.holderName).toBe("Ana Pérez");
+    expect(data.holderDocument).toBe("12345678");
     expect(data.totalLabel).toBe(formatPrice(350));
     expect(data.totalLabel.replace(/\s/g, " ")).toBe("S/ 350");
     expect(data.minAgeLabel).toBe("Mayores de 18 años");

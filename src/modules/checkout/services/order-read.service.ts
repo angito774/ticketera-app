@@ -35,6 +35,9 @@ function selectOrders(actor: CurrentUser, orderId?: string) {
       createdAt: orders.createdAt,
       totalAmountCents: orders.totalAmount,
       status: orders.status,
+      buyerName: orders.buyerName,
+      buyerEmail: orders.buyerEmail,
+      buyerDocumentNumber: orders.buyerDocumentNumber,
     })
     .from(orders)
     .innerJoin(events, eq(orders.eventId, events.id))

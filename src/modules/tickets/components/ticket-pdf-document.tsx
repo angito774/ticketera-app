@@ -73,6 +73,7 @@ export function TicketPdfDocument({ data, qrDataUrls }: TicketPdfDocumentProps) 
             <Field label="Zona" value={page.zoneName} />
             {page.seatLabel ? <Field label="Asiento" value={page.seatLabel} /> : null}
             <Field label="Titular" value={data.holderName} />
+            {data.holderDocument ? <Field label="Documento" value={data.holderDocument} /> : null}
             <Field label="Pedido" value={data.orderNumber} />
             <Field label="Total del pedido" value={data.totalLabel} />
             {data.minAgeLabel ? <Field label="Edad mínima" value={data.minAgeLabel} /> : null}

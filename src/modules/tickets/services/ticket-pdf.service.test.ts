@@ -26,6 +26,7 @@ function makeData(total: number): TicketPdfData {
     venueLine: "Estadio Nacional",
     addressLine: "Av. José Díaz s/n, Lima",
     holderName: "Ana Núñez Peña",
+    holderDocument: "12345678",
     totalLabel: "S/ 350",
     minAgeLabel: "Mayores de 18 años",
     pages,

@@ -49,6 +49,7 @@ export function buildTicketPdfData(order: OrderView, event: EventDetail): Ticket
     venueLine: event.venue,
     addressLine: `${event.address}, ${event.city}`,
     holderName: order.buyerName,
+    holderDocument: order.buyerDocumentNumber,
     totalLabel: formatPrice(order.total),
     minAgeLabel: event.minAge === null ? null : `Mayores de ${event.minAge} años`,
     pages,

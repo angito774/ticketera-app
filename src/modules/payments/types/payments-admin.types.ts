@@ -8,3 +8,14 @@ export interface CancelledEventRow {
   cancelledAt: Date | null;
   deadline: RefundDeadline;
 }
+
+export interface PaymentRow {
+  orderId: string;
+  eventTitle: string;
+  organizationName: string;
+  buyerEmail: string;
+  amount: number;
+  status: "paid" | "refunded";
+  settled: boolean;
+  date: Date;
+}

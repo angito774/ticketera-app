@@ -1,5 +1,5 @@
 {
-  "id": "f716846e-f15b-495d-a3ea-c06eb69cdea5",
+  "id": "0a8fa3ab-63a4-4b1d-99e7-fc0b0ad27479",
   "prevId": "d9abb062-1a52-4ad5-b54c-45e2c5ed0751",
   "version": "7",
   "dialect": "postgresql",
@@ -812,25 +812,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "cancellation_reason": {
-          "name": "cancellation_reason",
-          "type": "cancellation_reason",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancellation_note": {
-          "name": "cancellation_note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1902,6 +1883,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "buyer_name": {
+          "name": "buyer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "buyer_email": {
+          "name": "buyer_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "buyer_document_number": {
+          "name": "buyer_document_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "buyer_phone": {
+          "name": "buyer_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "settlement_id": {
           "name": "settlement_id",
           "type": "uuid",
@@ -2755,18 +2760,6 @@
     }
   },
   "enums": {
-    "public.cancellation_reason": {
-      "name": "cancellation_reason",
-      "schema": "public",
-      "values": [
-        "artist",
-        "natural_disaster",
-        "authority",
-        "venue",
-        "safety",
-        "other"
-      ]
-    },
     "public.discount_type": {
       "name": "discount_type",
       "schema": "public",

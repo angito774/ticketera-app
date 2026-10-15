@@ -18,9 +18,10 @@ import {
 import { RefundDeadlineBadge } from "@/modules/payments/components/refund-deadline-badge";
 import { RefundOrderDialog } from "@/modules/payments/components/refund-order-dialog";
 import type { SettlementCandidate, SettlementRow } from "@/modules/payments/services/settlement.service";
-import type { CancelledEventRow } from "@/modules/payments/types/payments-admin.types";
+import type { CancelledEventRow, PaymentRow } from "@/modules/payments/types/payments-admin.types";
 
 interface SettlementsTableProps {
+  payments: PaymentRow[];
   candidates: SettlementCandidate[];
   settlements: SettlementRow[];
   cancelledEvents: CancelledEventRow[];
@@ -47,7 +48,7 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-export function SettlementsTable({ candidates, settlements, cancelledEvents, pendingRefunds }: SettlementsTableProps) {
+export function SettlementsTable({ payments, candidates, settlements, cancelledEvents, pendingRefunds }: SettlementsTableProps) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: "ok" | "error" } | null>(null);
@@ -132,12 +133,50 @@ export function SettlementsTable({ candidates, settlements, cancelledEvents, pen
 
       {message && <ResultBanner text={message.text} tone={message.tone} />}
 
-      <Tabs defaultValue="candidates">
+      <Tabs defaultValue="payments">
         <TabsList>
+          <TabsTrigger value="payments">Pagos recibidos ({payments.length})</TabsTrigger>
           <TabsTrigger value="candidates">Por liquidar ({candidates.length})</TabsTrigger>
           <TabsTrigger value="settlements">Liquidaciones ({settlements.length})</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelados ({cancelledEvents.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="payments">
+          {payments.length === 0 ? (
+            <EmptyState text="Aún no hay pagos recibidos" />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Evento</TableHead>
+                  <TableHead scope="col">Organización</TableHead>
+                  <TableHead scope="col">Comprador</TableHead>
+                  <TableHead scope="col">Monto</TableHead>
+                  <TableHead scope="col">Estado</TableHead>
+                  <TableHead scope="col">Liquidado</TableHead>
+                  <TableHead scope="col">Fecha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map((row) => (
+                  <TableRow key={row.orderId}>
+                    <TableCell className="max-w-64 font-medium break-words whitespace-normal">{row.eventTitle}</TableCell>
+                    <TableCell>{row.organizationName}</TableCell>
+                    <TableCell>{row.buyerEmail}</TableCell>
+                    <TableCell className="font-medium tabular-nums">{money(row.amount)}</TableCell>
+                    <TableCell>
+                      <Badge variant={row.status === "paid" ? "default" : "secondary"}>
+                        {row.status === "paid" ? "Pagado" : "Reembolsado"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{row.status === "paid" ? (row.settled ? "Sí" : "No") : "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDate(row.date.toISOString())}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
 
         <TabsContent value="candidates">
           {candidates.length === 0 ? (

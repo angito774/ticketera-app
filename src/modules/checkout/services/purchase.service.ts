@@ -199,7 +199,7 @@ export async function purchaseTickets(
 
   let orderId: string;
   try {
-    ({ orderId } = await reserveOrder({ actor, eventId: event.id, resolved, items }));
+    ({ orderId } = await reserveOrder({ actor, eventId: event.id, resolved, items, buyer: request.buyer }));
   } catch (error) {
     if (error instanceof ReservationError) {
       throw new PurchaseError(error.kind === "conflict" ? CONFLICT : INVALID_SELECTION, error.kind === "conflict" ? 409 : 422);

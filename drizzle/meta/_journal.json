@@ -47,8 +47,15 @@
     {
       "idx": 6,
       "version": "7",
+      "when": 1792027152960,
+      "tag": "0006_opposite_vision",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
       "when": 1792029383663,
-      "tag": "0006_event_cancellation",
+      "tag": "0007_event_cancellation",
       "breakpoints": true
     }
   ]

@@ -19,6 +19,7 @@ interface ConfirmDeleteDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description: ReactNode;
+  children?: ReactNode;
   confirmLabel: string;
   pendingLabel?: string;
   cancelLabel?: string;
@@ -31,6 +32,7 @@ export function ConfirmDeleteDialog({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel,
   pendingLabel = "Eliminando...",
   cancelLabel = "Cancelar",
@@ -57,6 +59,8 @@ export function ConfirmDeleteDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
+
+        {children}
 
         {error && (
           <p

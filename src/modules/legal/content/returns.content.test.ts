@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { REFUND_DEADLINE_TEXT } from "@/lib/refund-policy";
 import { LEGAL_CONFIG } from "@/modules/legal/content/legal-config";
 import {
   RETURNS_DOCUMENT,
   buildReturnsDocument,
 } from "@/modules/legal/content/returns.content";
+import { CANCELLATION_REASON_LABELS } from "@/modules/organizer/schemas/cancellation.schema";
 import type { LegalDocument } from "@/modules/legal/types/legal.types";
 
 const FORBIDDEN = [
@@ -40,6 +42,8 @@ const allText = (doc: LegalDocument) =>
 const FULL_TITLES = [
   "Alcance",
   "Cancelación del evento",
+  "Cómo se realiza el reembolso",
+  "Gastos adicionales",
   "Reprogramación o cambios",
   "Devolución a pedido del cliente",
   "Cómo solicitar una devolución",
@@ -76,6 +80,44 @@ describe("buildReturnsDocument", () => {
     expect(text).toContain("atencion@inkasign.com");
     expect(text).toContain("el código de tus entradas");
     expect(text).toContain("manual");
+  });
+
+  describe("event cancellation", () => {
+    const section = (id: string) =>
+      RETURNS_DOCUMENT.sections.find((s) => s.id === id)!;
+    const sectionText = (id: string) =>
+      [...section(id).paragraphs, ...(section(id).items ?? [])].join(" ");
+
+    it("lists every cancellation reason label", () => {
+      const items = section("cancelacion-del-evento").items ?? [];
+      expect(items).toEqual(Object.values(CANCELLATION_REASON_LABELS));
+    });
+
+    it("states 100% of the ticket price, automatic refund and no request needed", () => {
+      const text = sectionText("cancelacion-del-evento");
+      expect(text).toContain("100% del precio de la entrada");
+      expect(text).toContain("automático");
+      expect(text).toContain("no necesitas solicitarlo");
+    });
+
+    it("states email notice, deadline from the constant and original payment method", () => {
+      const text = sectionText("como-se-reembolsa");
+      expect(text).toContain("correo electrónico");
+      expect(text).toContain(`${REFUND_DEADLINE_TEXT} desde la cancelación`);
+      expect(text).toContain("medio de pago original");
+    });
+
+    it("states that additional buyer expenses are not refunded", () => {
+      const text = sectionText("gastos-adicionales");
+      expect(text).toMatch(/No se reembolsan/);
+      expect(text).toMatch(/viaje, hospedaje/);
+    });
+
+    it("no longer says refunds are manual-only or that no automatic process exists", () => {
+      const text = allText(RETURNS_DOCUMENT);
+      expect(text).not.toMatch(/no existe un proceso automático/i);
+      expect(text).not.toMatch(/forma manual por correo/i);
+    });
   });
 
   it("presents the policy outside concerts as a commercial decision", () => {

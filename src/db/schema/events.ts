@@ -1,6 +1,6 @@
 import { boolean, index, integer, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { timestamps, tstz } from "./columns";
-import { eventStatus } from "./enums";
+import { cancellationReason, eventStatus } from "./enums";
 import { organizations } from "./identity";
 import { categories, venues } from "./venues";
 
@@ -27,6 +27,9 @@ export const events = pgTable(
     minAge: integer(),
     status: eventStatus().notNull().default("draft"),
     featured: boolean().notNull().default(false),
+    cancellationReason: cancellationReason(),
+    cancellationNote: text(),
+    cancelledAt: tstz(),
     ...timestamps(),
   },
   (t) => [

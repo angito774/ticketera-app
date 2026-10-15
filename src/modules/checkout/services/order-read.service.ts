@@ -32,9 +32,12 @@ function selectOrders(actor: CurrentUser, orderId?: string) {
       eventSlug: events.slug,
       eventTitle: events.title,
       eventStatus: events.status,
+      eventCancellationReason: events.cancellationReason,
       createdAt: orders.createdAt,
       totalAmountCents: orders.totalAmount,
       status: orders.status,
+      stripeRefundId: orders.stripeRefundId,
+      refundedAt: orders.refundedAt,
     })
     .from(orders)
     .innerJoin(events, eq(orders.eventId, events.id))

@@ -10,6 +10,7 @@ import { formatPrice, formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { FeaturedToggle } from "@/modules/organizer/components/featured-toggle";
 import { CancelEventDialog } from "@/modules/organizer/components/cancel-event-dialog";
+import { EventRefundProgress } from "@/modules/organizer/components/event-refund-progress";
 import { DeleteEventDialog } from "@/modules/organizer/components/delete-event-dialog";
 import { canCancelEvent, canDeleteEvent } from "@/modules/organizer/services/event-lifecycle.rules";
 import type { OrganizerEventRow } from "@/modules/events/types/event-list.types";
@@ -201,6 +202,9 @@ export function OrganizerEventsList({ events, canFeature, className }: Organizer
                       Destacado
                     </span>
                   )
+                )}
+                {event.status === "cancelled" && event.sold > 0 && (
+                  <EventRefundProgress eventId={event.id} title={event.title} />
                 )}
               </span>
               <span className="ml-auto lg:hidden">

@@ -43,6 +43,13 @@
       "when": 1791602155443,
       "tag": "0005_black_miss_america",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792029383663,
+      "tag": "0006_event_cancellation",
+      "breakpoints": true
     }
   ]
 }

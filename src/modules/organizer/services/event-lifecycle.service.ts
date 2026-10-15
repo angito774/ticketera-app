@@ -1,11 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { events, orders } from "@/db/schema";
+import { events, orders, settlements } from "@/db/schema";
 import { isForeignKeyViolation } from "@/lib/pg-errors";
 import { AdminError } from "@/modules/admin/services/admin.service";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 import { can } from "@/modules/auth/services/permissions";
+import type { CancellationReason } from "@/modules/organizer/schemas/cancellation.schema";
+import { DRAIN_BUDGET_MS, drainEventRefunds } from "@/modules/payments/services/refund.service";
 import {
   canCancelEvent,
   canDeleteEvent,
@@ -14,6 +16,7 @@ import {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = "Evento no encontrado";
 const HAS_SALES = "Este evento tiene ventas; cancélalo en lugar de eliminarlo";
+const SETTLED = "Este evento ya fue liquidado; contacta a soporte para cancelarlo";
 const NOT_PUBLISHED = "Solo se pueden cancelar eventos publicados";
 
 /** 404 uniforme: id inválido, inexistente o de otra organización responden igual. */
@@ -58,14 +61,40 @@ export async function deleteEvent(actor: CurrentUser, id: string): Promise<void>
   }
 }
 
-export async function cancelEvent(actor: CurrentUser, id: string): Promise<void> {
-  const current = await loadManagedEvent(actor, id);
+export async function cancelEvent(
+  actor: CurrentUser,
+  input: { id: string; reason: CancellationReason; note?: string },
+): Promise<void> {
+  const current = await loadManagedEvent(actor, input.id);
   if (!canCancelEvent({ status: current.status })) throw new AdminError(NOT_PUBLISHED);
+
+  const settled = await db
+    .select({ id: settlements.id })
+    .from(settlements)
+    .where(eq(settlements.eventId, current.id))
+    .limit(1);
+  if (settled.length > 0) throw new AdminError(SETTLED);
 
   const updated = await db
     .update(events)
-    .set({ status: "cancelled", featured: false })
+    .set({
+      status: "cancelled",
+      featured: false,
+      cancellationReason: input.reason,
+      cancellationNote: input.note?.trim() || null,
+      cancelledAt: new Date(),
+    })
     .where(and(eq(events.id, current.id), eq(events.status, "published")))
     .returning({ id: events.id });
   if (updated.length === 0) throw new AdminError(NOT_PUBLISHED);
+
+  try {
+    await drainEventRefunds(current.id, DRAIN_BUDGET_MS);
+  } catch (error) {
+    // Los reembolsos pendientes se retoman luego; no deben deshacer la cancelación.
+    console.error("cancelEvent: drainEventRefunds failed", {
+      name: error instanceof Error ? error.name : "unknown",
+      code: (error as { code?: unknown } | null)?.code,
+    });
+  }
 }

@@ -1,14 +1,21 @@
 import { and, asc, count, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { z } from "zod";
+
 import { db } from "@/db";
-import { events, orderItems, orders, organizations, settlements, tickets, users } from "@/db/schema";
+import { events, notifications, orderItems, orders, organizations, settlements, tickets, users } from "@/db/schema";
+import { sendEmail } from "@/lib/email";
 import { isDivisionByZero } from "@/lib/pg-errors";
+import { getRefundDeadline } from "@/lib/refund-policy";
 import { getStripe } from "@/lib/stripe";
 import { AdminError } from "@/modules/admin/services/admin.service";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 import { can } from "@/modules/auth/services/permissions";
+import { orderNumberFromId } from "@/modules/checkout/services/purchase.mapping";
 import { releaseSoldSql } from "@/modules/checkout/services/purchase.query";
+import { CANCELLATION_REASON_LABELS } from "@/modules/organizer/schemas/cancellation.schema";
+import { buildRefundEmail } from "@/modules/payments/services/refund-email";
 import {
   assertRefundable,
   clampRefundLimit,
@@ -157,6 +164,43 @@ async function claimOrderForRefund(orderId: string, returnInventory: boolean): P
   }
 }
 
+/** Aviso al comprador: best-effort, un fallo aquí nunca altera el resultado del reembolso. */
+async function notifyRefund(orderId: string): Promise<void> {
+  try {
+    const [row] = await db
+      .select({
+        userId: orders.userId,
+        total: orders.totalAmount,
+        email: users.email,
+        eventTitle: events.title,
+        reason: events.cancellationReason,
+      })
+      .from(orders)
+      .innerJoin(users, eq(users.id, orders.userId))
+      .innerJoin(events, eq(events.id, orders.eventId))
+      .where(eq(orders.id, orderId))
+      .limit(1);
+    if (!row) return;
+    const { subject, html } = buildRefundEmail({
+      eventTitle: row.eventTitle,
+      reasonLabel: row.reason ? CANCELLATION_REASON_LABELS[row.reason] : null,
+      amountCents: row.total,
+      orderNumber: orderNumberFromId(orderId),
+    });
+    const sent = await sendEmail({ to: row.email, subject, html });
+    await db.insert(notifications).values({
+      userId: row.userId,
+      type: "order_refunded",
+      channel: "email",
+      status: sent ? "sent" : "failed",
+      payload: { orderId },
+      sentAt: sent ? new Date() : null,
+    });
+  } catch (error) {
+    console.error("refund.notify_failed", { orderId, code: error instanceof Error ? error.name : "unknown" });
+  }
+}
+
 /**
  * Pasos (2)-(3) de AC-6. La clave de idempotencia es estable por orden: repetir el paso tras un fallo o una
  * caída devuelve el mismo reembolso y nunca crea otro. Un error de Stripe no revierte el reclamo (el
@@ -173,10 +217,12 @@ async function createStripeRefund(orderId: string, paymentIntentId: string): Pro
       },
       { idempotencyKey: `refund-order-${orderId}` },
     );
-    await db
+    const registered = await db
       .update(orders)
       .set({ stripeRefundId: refund.id, updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), isNull(orders.stripeRefundId)));
+      .where(and(eq(orders.id, orderId), isNull(orders.stripeRefundId)))
+      .returning({ id: orders.id });
+    if (registered.length > 0) await notifyRefund(orderId);
     return true;
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
@@ -245,6 +291,14 @@ export async function refundEventOrders(
   opts: { limit?: number } = {},
 ): Promise<BatchResult> {
   requireAdmin(actor);
+  return refundEventOrdersCore(eventId, opts);
+}
+
+/** Núcleo sin chequeo de actor: quien lo llame debe haber autorizado antes. */
+export async function refundEventOrdersCore(
+  eventId: string,
+  opts: { limit?: number } = {},
+): Promise<BatchResult> {
   const [event] = await db
     .select({ status: events.status })
     .from(events)
@@ -270,25 +324,81 @@ export async function refundEventOrders(
   return { processed, failed, remaining: await countOrders(where) };
 }
 
-export async function listCancelledEventsWithPaidOrders(actor: CurrentUser): Promise<CancelledEventRow[]> {
+/** Repite lotes hasta vaciar la cola, agotar el presupuesto de tiempo o que un lote no avance. */
+export async function drainEventRefunds(eventId: string, budgetMs: number): Promise<BatchResult> {
+  const start = performance.now();
+  let processed = 0;
+  let failed = 0;
+  let remaining = 0;
+  for (;;) {
+    const batch = await refundEventOrdersCore(eventId);
+    processed += batch.processed;
+    failed += batch.failed;
+    remaining = batch.remaining;
+    if (remaining === 0 || batch.processed === 0 || performance.now() - start >= budgetMs) break;
+  }
+  return { processed, failed, remaining };
+}
+
+const EVENT_NOT_FOUND = "Evento no encontrado";
+export const DRAIN_BUDGET_MS = 15_000;
+
+async function loadManagedEventStatus(actor: CurrentUser, eventId: string) {
+  if (!z.uuid().safeParse(eventId).success) throw new AdminError(EVENT_NOT_FOUND);
+  const [event] = await db
+    .select({ status: events.status, organizationId: events.organizationId })
+    .from(events)
+    .where(eq(events.id, eventId))
+    .limit(1);
+  if (!event || !can(actor, "events:manage", event.organizationId)) throw new AdminError(EVENT_NOT_FOUND);
+  return event;
+}
+
+export async function continueEventRefunds(actor: CurrentUser, eventId: string): Promise<BatchResult> {
+  const event = await loadManagedEventStatus(actor, eventId);
+  if (event.status !== "cancelled") throw new AdminError("El evento no está cancelado");
+  try {
+    return await drainEventRefunds(eventId, DRAIN_BUDGET_MS);
+  } catch (error) {
+    // Evento liquidado u otra regla de reembolso: se muestra al organizador en lugar de un 500.
+    if (error instanceof RefundRuleError) throw new AdminError(error.message);
+    throw error;
+  }
+}
+
+export async function getEventRefundProgress(
+  actor: CurrentUser,
+  eventId: string,
+): Promise<{ pending: number; refunded: number }> {
+  await loadManagedEventStatus(actor, eventId);
+  const [pending, refunded] = await Promise.all([
+    countOrders(and(eq(orders.eventId, eventId), or(claimable, stripePending))),
+    countOrders(and(eq(orders.eventId, eventId), eq(orders.status, "refunded"), isNotNull(orders.stripeRefundId))),
+  ]);
+  return { pending, refunded };
+}
+
+export async function listCancelledEventsWithPendingRefunds(
+  actor: CurrentUser,
+  now: Date = new Date(),
+): Promise<CancelledEventRow[]> {
   requireAdmin(actor);
-  return db
+  const rows = await db
     .select({
       eventId: events.id,
       eventTitle: events.title,
       organizationName: organizations.name,
-      paidOrders: sql<number>`count(${orders.id})::int`,
+      pendingOrders: sql<number>`count(${orders.id})::int`,
+      cancelledAt: events.cancelledAt,
     })
     .from(events)
     .innerJoin(organizations, eq(events.organizationId, organizations.id))
-    .innerJoin(
-      orders,
-      and(eq(orders.eventId, events.id), eq(orders.status, "paid"), isNull(orders.settlementId)),
-    )
+    .innerJoin(orders, and(eq(orders.eventId, events.id), or(claimable, stripePending)))
     .leftJoin(settlements, eq(settlements.eventId, events.id))
     .where(and(eq(events.status, "cancelled"), isNull(settlements.id)))
-    .groupBy(events.id, events.title, events.startsAt, organizations.name)
-    .orderBy(events.startsAt);
+    .groupBy(events.id, events.title, events.cancelledAt, organizations.name)
+    .orderBy(sql`${events.cancelledAt} asc nulls last`, asc(events.title), asc(events.id));
+  return rows.map((row) => ({ ...row, deadline: getRefundDeadline(row.cancelledAt, now) }));
 }
 
 export async function countPendingRefunds(actor: CurrentUser): Promise<number> {

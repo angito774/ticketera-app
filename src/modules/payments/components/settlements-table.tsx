@@ -15,6 +15,7 @@ import {
   settleEventAction,
   type PaymentsActionResult,
 } from "@/modules/payments/actions/payments-admin.actions";
+import { RefundDeadlineBadge } from "@/modules/payments/components/refund-deadline-badge";
 import { RefundOrderDialog } from "@/modules/payments/components/refund-order-dialog";
 import type { SettlementCandidate, SettlementRow } from "@/modules/payments/services/settlement.service";
 import type { CancelledEventRow, PaymentRow } from "@/modules/payments/types/payments-admin.types";
@@ -109,6 +110,9 @@ export function SettlementsTable({ payments, candidates, settlements, cancelledE
       }),
     );
   }
+
+  const warningCount = cancelledEvents.filter((row) => row.deadline.state === "warning").length;
+  const overdueCount = cancelledEvents.filter((row) => row.deadline.state === "overdue").length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -280,14 +284,26 @@ export function SettlementsTable({ payments, candidates, settlements, cancelledE
 
         <TabsContent value="cancelled">
           {cancelledEvents.length === 0 ? (
-            <EmptyState text="No hay eventos cancelados con órdenes pagadas" />
+            <EmptyState text="No hay eventos cancelados con reembolsos pendientes" />
           ) : (
+            <>
+            {(warningCount > 0 || overdueCount > 0) && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                {[
+                  warningCount > 0 && `${warningCount} ${warningCount === 1 ? "evento por vencer" : "eventos por vencer"}`,
+                  overdueCount > 0 && `${overdueCount} con plazo vencido`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead scope="col">Evento</TableHead>
                   <TableHead scope="col">Organización</TableHead>
-                  <TableHead scope="col">Órdenes pagadas</TableHead>
+                  <TableHead scope="col">Órdenes pendientes</TableHead>
+                  <TableHead scope="col">Plazo de reembolso</TableHead>
                   <TableHead scope="col">
                     <span className="sr-only">Acciones</span>
                   </TableHead>
@@ -298,7 +314,10 @@ export function SettlementsTable({ payments, candidates, settlements, cancelledE
                   <TableRow key={row.eventId}>
                     <TableCell className="max-w-64 font-medium break-words whitespace-normal">{row.eventTitle}</TableCell>
                     <TableCell>{row.organizationName}</TableCell>
-                    <TableCell className="tabular-nums">{row.paidOrders}</TableCell>
+                    <TableCell className="tabular-nums">{row.pendingOrders}</TableCell>
+                    <TableCell>
+                      <RefundDeadlineBadge deadline={row.deadline} />
+                    </TableCell>
                     <TableCell>
                       <Button
                         type="button"
@@ -315,6 +334,7 @@ export function SettlementsTable({ payments, candidates, settlements, cancelledE
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -8,7 +8,7 @@ import { CircleAlert, CircleCheck, Loader2, Mail, QrCode, Ticket } from "lucide-
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmationActions } from "@/modules/checkout/components/confirmation-actions";
-import { OrderTicketCard } from "@/modules/checkout/components/order-ticket-card";
+import { EventCancelledNotice, OrderTicketCard } from "@/modules/checkout/components/order-ticket-card";
 import { usePendingOrderRefresh } from "@/modules/checkout/hooks/use-pending-order-refresh";
 import type { OrderView } from "@/modules/checkout/services/order-read.service";
 import type { EventDetail } from "@/modules/events/types/event.types";
@@ -116,7 +116,9 @@ export function ConfirmationView({ order, event, className }: ConfirmationViewPr
         </span>
       </div>
 
-      <OrderTicketCard order={order} event={event} />
+      <EventCancelledNotice order={order} />
+
+      <OrderTicketCard order={order} event={event} showCancelledNotice={false} />
 
       <ConfirmationActions order={order} event={event} className="print:hidden" />
 

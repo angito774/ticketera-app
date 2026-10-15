@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addBusinessDays, toLimaDate } from "./business-days";
+import { addBusinessDays, businessDaysBetween, toLimaDate } from "./business-days";
 
 describe("addBusinessDays", () => {
   it("devuelve la misma fecha con 0 días", () => {
@@ -112,5 +112,67 @@ describe("toLimaDate", () => {
   it("combina con addBusinessDays: registro el viernes a las 22:00 Lima", () => {
     const registered = toLimaDate(new Date("2026-10-10T03:00:00Z"));
     expect(addBusinessDays(registered, 1)).toBe("2026-10-12");
+  });
+});
+
+describe("businessDaysBetween", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  const at = (iso: string) => new Date(`${iso}T15:00:00Z`);
+
+  it("mismo día es 0", () => {
+    expect(businessDaysBetween(at("2026-10-07"), at("2026-10-07"))).toBe(0);
+    expect(businessDaysBetween(new Date("2026-10-07T13:00:00Z"), new Date("2026-10-08T03:00:00Z"))).toBe(0);
+  });
+
+  it("lunes a viernes es 4", () => {
+    expect(businessDaysBetween(at("2026-10-05"), at("2026-10-09"))).toBe(4);
+  });
+
+  it("viernes a lunes es 1", () => {
+    expect(businessDaysBetween(at("2026-10-09"), at("2026-10-12"))).toBe(1);
+  });
+
+  it("sábado a lunes es 1", () => {
+    expect(businessDaysBetween(at("2026-10-10"), at("2026-10-12"))).toBe(1);
+  });
+
+  it("sábado a domingo es 0", () => {
+    expect(businessDaysBetween(at("2026-10-10"), at("2026-10-11"))).toBe(0);
+  });
+
+  it("devuelve 0 si `to` es anterior a `from`", () => {
+    expect(businessDaysBetween(at("2026-10-12"), at("2026-10-05"))).toBe(0);
+  });
+
+  it("cruza fin de mes, fin de año y febrero bisiesto", () => {
+    expect(businessDaysBetween(at("2026-10-29"), at("2026-11-03"))).toBe(3);
+    expect(businessDaysBetween(at("2026-12-30"), at("2027-01-04"))).toBe(3);
+    expect(businessDaysBetween(at("2028-02-28"), at("2028-03-01"))).toBe(2);
+  });
+
+  it("usa la fecha de Lima: 03:00 UTC del sábado sigue siendo viernes", () => {
+    expect(businessDaysBetween(new Date("2026-10-10T03:00:00Z"), at("2026-10-12"))).toBe(1);
+  });
+
+  it("es el inverso de addBusinessDays para n = 0..30", () => {
+    for (let n = 0; n <= 30; n += 1) {
+      for (const start of ["2026-10-05", "2026-10-10", "2026-10-11", "2028-02-25"]) {
+        const end = addBusinessDays(start, n);
+        expect(businessDaysBetween(at(start), at(end))).toBe(n);
+      }
+    }
+  });
+
+  it("no depende de la zona horaria del proceso", () => {
+    vi.stubEnv("TZ", "Pacific/Auckland");
+    expect(businessDaysBetween(at("2026-10-09"), at("2026-10-12"))).toBe(1);
+    vi.stubEnv("TZ", "America/Los_Angeles");
+    expect(businessDaysBetween(at("2026-10-05"), at("2026-10-26"))).toBe(15);
+  });
+
+  it("lanza error con fechas inválidas", () => {
+    expect(() => businessDaysBetween(new Date(NaN), at("2026-10-05"))).toThrow();
+    expect(() => businessDaysBetween(at("2026-10-05"), new Date(NaN))).toThrow();
   });
 });

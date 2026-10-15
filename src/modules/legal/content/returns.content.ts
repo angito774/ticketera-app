@@ -1,3 +1,5 @@
+// Borrador técnico: validar con un abogado antes de publicar en producción; no es asesoría legal.
+import { REFUND_DEADLINE_TEXT } from "@/lib/refund-policy";
 import {
   LEGAL_CONFIG,
   type LegalConfig,
@@ -7,7 +9,7 @@ import type {
   LegalSection,
 } from "@/modules/legal/types/legal.types";
 
-const REFUND_DEADLINE = "máximo 15 días hábiles desde la solicitud";
+const REQUEST_DEADLINE = `${REFUND_DEADLINE_TEXT} desde la solicitud`;
 
 export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
   const { brandName, legalName, customerServiceEmail, complaintsBookUrl } = config;
@@ -21,15 +23,39 @@ export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
         `Esta política explica cuándo y cómo puedes pedir la devolución de lo pagado por tus entradas${
           brandName ? ` en ${brandName}` : ""
         }, y qué garantía legal te asiste como consumidor.`,
-        "Las devoluciones se tramitan de forma manual por correo electrónico; no existe un proceso automático.",
+        "Si el evento se cancela, el reembolso es automático y no necesitas solicitarlo. En los demás casos, las devoluciones se piden por correo electrónico.",
       ],
     },
     {
       id: "cancelacion-del-evento",
       title: "Cancelación del evento",
       paragraphs: [
-        "Si el organizador cancela el evento, tienes derecho a la devolución del 100% del valor pagado.",
-        `El plazo de devolución es de ${REFUND_DEADLINE}.`,
+        "Si el organizador cancela el evento, tienes derecho a la devolución del 100% del precio de la entrada. El reembolso es automático: no necesitas solicitarlo.",
+        "El organizador indica uno de estos motivos al cancelar:",
+      ],
+      items: [
+        "Artista enfermo o no disponible",
+        "Desastre natural o sismo",
+        "Orden de una autoridad",
+        "Problema con el recinto",
+        "Riesgo para la seguridad",
+        "Otro motivo",
+      ],
+    },
+    {
+      id: "como-se-reembolsa",
+      title: "Cómo se realiza el reembolso",
+      paragraphs: [
+        "Te avisamos por correo electrónico cuando se cancela el evento y cuando se procesa tu reembolso.",
+        `El plazo de reembolso es de ${REFUND_DEADLINE_TEXT} desde la cancelación.`,
+        "El reembolso se hace al medio de pago original con el que compraste.",
+      ],
+    },
+    {
+      id: "gastos-adicionales",
+      title: "Gastos adicionales",
+      paragraphs: [
+        "No se reembolsan los gastos adicionales del comprador, como viaje, hospedaje y similares. El reembolso cubre solo el precio de la entrada.",
       ],
     },
     {
@@ -37,7 +63,7 @@ export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
       title: "Reprogramación o cambios",
       paragraphs: [
         "Si el evento se reprograma o cambia su fecha, lugar u objeto y no aceptas el cambio, puedes pedir la devolución del 100% del valor pagado.",
-        `El plazo de devolución es de ${REFUND_DEADLINE}.`,
+        `El plazo de devolución es de ${REQUEST_DEADLINE}.`,
         "Para conciertos, la Ley N.º 32415 regula la venta y devolución de entradas y establece ese plazo (dato a verificar en la normativa vigente). Esa ley no aplica a eventos teatrales ni a eventos auspiciados por el Ministerio de Cultura.",
         `Para teatro y otros eventos no cubiertos por esa ley, ${provider} aplica el mismo criterio por decisión comercial propia, no por obligación de esa ley.`,
       ],
@@ -92,7 +118,7 @@ export function buildReturnsDocument(config: LegalConfig = {}): LegalDocument {
 
   return {
     title: "Garantía y devoluciones",
-    updatedAt: "2026-10-07T12:00:00-05:00",
+    updatedAt: "2026-10-14T12:00:00-05:00",
     notice:
       brandName && legalName
         ? `${brandName} es una marca de ${legalName}`

@@ -1,3 +1,5 @@
+// Borrador técnico: validar con un abogado antes de publicar en producción; no es asesoría legal.
+import { REFUND_DEADLINE_TEXT } from "@/lib/refund-policy";
 import { LEGAL_CONFIG, type LegalConfig } from "@/modules/legal/content/legal-config";
 import type { LegalDocument, LegalSection } from "@/modules/legal/types/legal.types";
 
@@ -98,6 +100,7 @@ export function buildTermsDocument(config: LegalConfig = LEGAL_CONFIG): LegalDoc
       id: "cancelaciones",
       title: "Cancelaciones y devoluciones",
       paragraphs: [
+        `Si un evento se cancela, se devuelve el 100% del precio de la entrada de forma automática al medio de pago original, y te avisamos por correo. El plazo de la devolución es de ${REFUND_DEADLINE_TEXT} desde la cancelación. La devolución no incluye gastos adicionales del comprador.`,
         "Las condiciones para cancelaciones, cambios de evento y devoluciones se detallan en la política de garantía y devoluciones.",
       ],
       links: [{ label: "Garantía y devoluciones", href: "/devoluciones" }],
@@ -148,7 +151,7 @@ export function buildTermsDocument(config: LegalConfig = LEGAL_CONFIG): LegalDoc
   return {
     title: "Términos y condiciones",
     notice: brandName && legalName ? `${brandName} es una marca de ${legalName}` : undefined,
-    updatedAt: "2026-10-07T12:00:00-05:00",
+    updatedAt: "2026-10-14T12:00:00-05:00",
     sections: sections.filter((section): section is LegalSection => section !== null),
   };
 }

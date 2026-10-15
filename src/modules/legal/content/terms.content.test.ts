@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { REFUND_DEADLINE_TEXT } from "@/lib/refund-policy";
 import { LEGAL_CONFIG, type LegalConfig } from "@/modules/legal/content/legal-config";
 import type { LegalDocument } from "@/modules/legal/types/legal.types";
 
@@ -134,5 +135,17 @@ describe("terms content", () => {
       .join(" ");
     expect(text).not.toMatch(/puedes consultar en tu cuenta/);
     expect(text).toMatch(/que ves en la pantalla de confirmación/);
+  });
+
+  it("summarizes the event cancellation refund in its own paragraph", () => {
+    const section = buildTermsDocument(LEGAL_CONFIG).sections.find((s) => s.id === "cancelaciones");
+    const paragraph = section?.paragraphs.find((p) => p.includes("100%")) ?? "";
+    expect(paragraph).toContain("100%");
+    expect(paragraph).toContain("automática");
+    expect(paragraph).toContain("correo");
+    expect(paragraph).toContain(REFUND_DEADLINE_TEXT);
+    expect(paragraph).toContain("medio de pago original");
+    expect(paragraph).toContain("gastos adicionales");
+    expect(section?.links?.map((l) => l.href)).toContain("/devoluciones");
   });
 });

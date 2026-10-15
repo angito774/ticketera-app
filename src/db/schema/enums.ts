@@ -38,3 +38,11 @@ export const settlementStatus = pgEnum("settlement_status", [
   "paid",
   "failed",
 ]);
+export const cancellationReason = pgEnum("cancellation_reason", [
+  "artist",
+  "natural_disaster",
+  "authority",
+  "venue",
+  "safety",
+  "other",
+]);

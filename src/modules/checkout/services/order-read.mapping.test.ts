@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildOrderViews,
+  getRefundView,
   isUuid,
   mapRemainingByZone,
   mapSoldSeatIds,
@@ -34,9 +35,12 @@ describe("buildOrderViews", () => {
           eventSlug: "concert-01",
           eventTitle: "Show",
           eventStatus: "cancelled",
+          eventCancellationReason: "venue",
           createdAt: new Date("2026-10-01T12:00:00Z"),
           totalAmountCents: 12550,
           status: "paid",
+          stripeRefundId: null,
+          refundedAt: null,
         },
       ],
       [
@@ -54,6 +58,52 @@ describe("buildOrderViews", () => {
     ]);
     expect(views[0].buyerEmail).toBe("ana@x.com");
     expect(views[0].eventStatus).toBe("cancelled");
+    expect(views[0].eventCancellationReason).toBe("venue");
+    expect(views[0].refundState).toBe("in_progress");
+    expect(views[0].refundedAt).toBeNull();
+  });
+
+  it("propaga refundState completed y refundedAt en ISO", () => {
+    const [view] = buildOrderViews(
+      [
+        {
+          id: "3f2b8c1e-1a2b-4c3d-8e9f-0a1b2c3d4e5f",
+          eventSlug: "concert-01",
+          eventTitle: "Show",
+          eventStatus: "cancelled",
+          eventCancellationReason: null,
+          createdAt: new Date("2026-10-01T12:00:00Z"),
+          totalAmountCents: 1000,
+          status: "refunded",
+          stripeRefundId: "re_1",
+          refundedAt: new Date("2026-10-05T10:00:00Z"),
+        },
+      ],
+      [],
+      { name: "Ana", email: "ana@x.com" },
+      (d) => d.toISOString()
+    );
+    expect(view.refundState).toBe("completed");
+    expect(view.refundedAt).toBe("2026-10-05T10:00:00.000Z");
+    expect(view.eventCancellationReason).toBeNull();
+  });
+});
+
+describe("getRefundView", () => {
+  it("paid con evento cancelado: in_progress", () => {
+    expect(getRefundView({ orderStatus: "paid", eventStatus: "cancelled", hasStripeRefund: false })).toBe("in_progress");
+  });
+
+  it("refunded sin reembolso Stripe: in_progress; con reembolso: completed", () => {
+    expect(getRefundView({ orderStatus: "refunded", eventStatus: "cancelled", hasStripeRefund: false })).toBe("in_progress");
+    expect(getRefundView({ orderStatus: "refunded", eventStatus: "cancelled", hasStripeRefund: true })).toBe("completed");
+  });
+
+  it("resto de combinaciones: none", () => {
+    expect(getRefundView({ orderStatus: "paid", eventStatus: "published", hasStripeRefund: false })).toBe("none");
+    expect(getRefundView({ orderStatus: "paid", eventStatus: "draft", hasStripeRefund: false })).toBe("none");
+    expect(getRefundView({ orderStatus: "pending", eventStatus: "cancelled", hasStripeRefund: false })).toBe("none");
+    expect(getRefundView({ orderStatus: "cancelled", eventStatus: "cancelled", hasStripeRefund: false })).toBe("none");
   });
 });
 

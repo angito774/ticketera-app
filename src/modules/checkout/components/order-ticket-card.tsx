@@ -2,18 +2,21 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleAlert } from "lucide-react";
 
-import { formatLongDate, formatPrice } from "@/lib/format";
+import { formatDate, formatLongDate, formatPrice } from "@/lib/format";
+import { REFUND_DEADLINE_TEXT } from "@/lib/refund-policy";
 import { cn } from "@/lib/utils";
 import { DecorativeQr } from "@/modules/checkout/components/decorative-qr";
 import { shortTicketCode } from "@/modules/checkout/services/order-read.mapping";
 import type { OrderTicketView, OrderView } from "@/modules/checkout/services/order-read.service";
 import { EVENT_CATEGORY_LABELS, type Event } from "@/modules/events/types/event.types";
+import { CANCELLATION_REASON_LABELS } from "@/modules/organizer/schemas/cancellation.schema";
 
 interface OrderTicketCardProps {
   order: OrderView;
   event: Pick<Event, "title" | "imageUrl" | "date" | "venue" | "city" | "category">;
+  showCancelledNotice?: boolean;
   className?: string;
 }
 
@@ -39,8 +42,44 @@ export function qrSeedFor(qrCode: string): number {
 
 export { shortTicketCode };
 
+/** Aviso de evento cancelado con motivo y estado del reembolso; no renderiza nada si el evento no está cancelado. */
+export function EventCancelledNotice({
+  order,
+  className,
+}: {
+  order: Pick<OrderView, "eventStatus" | "eventCancellationReason" | "refundState" | "refundedAt">;
+  className?: string;
+}) {
+  if (order.eventStatus !== "cancelled") return null;
+  const reason = order.eventCancellationReason
+    ? CANCELLATION_REASON_LABELS[order.eventCancellationReason]
+    : null;
+
+  return (
+    <div
+      role="status"
+      className={cn(
+        "flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-foreground",
+        className
+      )}
+    >
+      <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+      <div className="flex flex-col gap-0.5">
+        <strong className="font-semibold">Evento cancelado</strong>
+        {reason && <span>{reason}</span>}
+        {order.refundState === "in_progress" && (
+          <span>Reembolso en curso — {REFUND_DEADLINE_TEXT}</span>
+        )}
+        {order.refundState === "completed" && order.refundedAt && (
+          <span>Reembolsado el {formatDate(order.refundedAt)}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Entrada con aspecto de ticket: datos del evento a la izquierda y QR (paginable) a la derecha. */
-export function OrderTicketCard({ order, event, className }: OrderTicketCardProps) {
+export function OrderTicketCard({ order, event, showCancelledNotice = true, className }: OrderTicketCardProps) {
   const [index, setIndex] = useState(0);
   const ticket = order.tickets[index];
   const total = order.tickets.length;
@@ -59,6 +98,7 @@ export function OrderTicketCard({ order, event, className }: OrderTicketCardProp
           <Image src={event.imageUrl} alt="" fill sizes="(min-width: 768px) 600px, 100vw" className="object-cover" />
         </div>
         <div className="flex flex-col gap-4 p-5 lg:p-7">
+          {showCancelledNotice && <EventCancelledNotice order={order} />}
           <div className="flex flex-col gap-1">
             <span className="text-[0.8125rem] font-semibold text-primary">
               {EVENT_CATEGORY_LABELS[event.category].plural}

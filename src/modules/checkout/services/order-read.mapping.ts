@@ -1,9 +1,12 @@
 import { orderNumberFromId } from "@/modules/checkout/services/purchase.mapping";
+import type { CancellationReason } from "@/modules/organizer/schemas/cancellation.schema";
 import type { VenueLayout } from "@/modules/tickets/types/venue.types";
 
 export type OrderStatusView = "paid" | "pending" | "cancelled" | "refunded";
 export type TicketStatusView = "valid" | "redeemed" | "cancelled";
 export type EventStatusView = "draft" | "published" | "cancelled";
+
+export type RefundStateView = "none" | "in_progress" | "completed";
 
 export interface OrderTicketView {
   id: string;
@@ -19,6 +22,9 @@ export interface OrderView {
   eventSlug: string;
   eventTitle: string;
   eventStatus: EventStatusView;
+  eventCancellationReason: CancellationReason | null;
+  refundState: RefundStateView;
+  refundedAt: string | null;
   createdAt: string;
   total: number;
   status: OrderStatusView;
@@ -33,9 +39,12 @@ export interface OrderRow {
   eventSlug: string;
   eventTitle: string;
   eventStatus: EventStatusView;
+  eventCancellationReason: CancellationReason | null;
   createdAt: Date;
   totalAmountCents: number;
   status: OrderStatusView;
+  stripeRefundId: string | null;
+  refundedAt: Date | null;
   buyerName?: string | null;
   buyerEmail?: string | null;
   buyerDocumentNumber?: string | null;
@@ -66,6 +75,16 @@ export function shortTicketCode(qrCode: string): string {
   return qrCode.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
+export function getRefundView(input: {
+  orderStatus: OrderStatusView;
+  eventStatus: EventStatusView;
+  hasStripeRefund: boolean;
+}): RefundStateView {
+  if (input.orderStatus === "paid" && input.eventStatus === "cancelled") return "in_progress";
+  if (input.orderStatus === "refunded") return input.hasStripeRefund ? "completed" : "in_progress";
+  return "none";
+}
+
 export function buildOrderViews(
   orders: OrderRow[],
   tickets: TicketRow[],
@@ -91,6 +110,13 @@ export function buildOrderViews(
     eventSlug: order.eventSlug,
     eventTitle: order.eventTitle,
     eventStatus: order.eventStatus,
+    eventCancellationReason: order.eventCancellationReason,
+    refundState: getRefundView({
+      orderStatus: order.status,
+      eventStatus: order.eventStatus,
+      hasStripeRefund: order.stripeRefundId !== null,
+    }),
+    refundedAt: order.refundedAt ? toIso(order.refundedAt) : null,
     createdAt: toIso(order.createdAt),
     total: order.totalAmountCents / 100,
     status: order.status,

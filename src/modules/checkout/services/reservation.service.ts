@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { and, eq, lt, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import { db } from "@/db";
+import { runAtomic, type Statement } from "@/db/atomic";
 import { orderItems, orders, stripeEvents, ticketHolds, tickets } from "@/db/schema";
 import {
   isCheckViolation,
@@ -33,8 +33,6 @@ import {
   HOLD_TTL_MINUTES,
 } from "@/modules/payments/services/checkout-session.mapping";
 import { chunkRows } from "@/modules/organizer/services/event-seats";
-
-type Statement = BatchItem<"pg">;
 
 const SWEEP_LIMIT = 50;
 const MINUTE_MS = 60_000;
@@ -80,23 +78,23 @@ function reservationStatements(
   const numberedSold: Statement[] = [];
   items.forEach((item, index) => {
     if (resolved[index].seating === "numbered") {
-      claims.push(db.execute(claimSeatsSql(item.eventSeatIds, { from: "available", to: "held" })));
-      numberedSold.push(db.execute(addSoldSql(item.ticketTypeId, item.quantity)));
+      claims.push((tx) => tx.execute(claimSeatsSql(item.eventSeatIds, { from: "available", to: "held" })));
+      numberedSold.push((tx) => tx.execute(addSoldSql(item.ticketTypeId, item.quantity)));
     } else {
-      general.push(db.execute(reserveGeneralSql(item.ticketTypeId, item.quantity)));
+      general.push((tx) => tx.execute(reserveGeneralSql(item.ticketTypeId, item.quantity)));
     }
   });
   return [
     ...claims,
     ...general,
     ...numberedSold,
-    db.insert(orders).values(rows.order),
-    db.insert(orderItems).values(rows.orderItems),
-    ...chunkRows(rows.holds).map((chunk) => db.insert(ticketHolds).values(chunk)),
+    (tx) => tx.insert(orders).values(rows.order),
+    (tx) => tx.insert(orderItems).values(rows.orderItems),
+    ...chunkRows(rows.holds).map((chunk): Statement => (tx) => tx.insert(ticketHolds).values(chunk)),
   ];
 }
 
-/** Reserva atómica: orden pending, ítems, holds, asientos held y cupo sumado en un solo batch. */
+/** Reserva atómica: orden pending, ítems, holds, asientos held y cupo sumado en una sola transacción. */
 export async function reserveOrder(args: {
   actor: CurrentUser;
   eventId: string;
@@ -120,7 +118,7 @@ export async function reserveOrder(args: {
     args.buyer,
   );
   try {
-    await db.batch(statements as [Statement, ...Statement[]]);
+    await runAtomic(statements);
   } catch (error) {
     if (isDivisionByZero(error) || isCheckViolation(error) || isUniqueViolation(error)) {
       throw new ReservationError("conflict");
@@ -136,9 +134,9 @@ export async function attachCheckoutSession(orderId: string, sessionId: string):
 }
 
 /**
- * Cancela una orden pending y libera su reserva (asientos, cupo y holds) en un batch. Idempotente: la
+ * Cancela una orden pending y libera su reserva (asientos, cupo y holds) en una transacción. Idempotente: la
  * liberación se guía por los holds de la orden, que desaparecen al liberar. Con `stripeEventId` registra el
- * evento en el mismo batch; si ya estaba registrado devuelve "noop".
+ * evento en la misma transacción; si ya estaba registrado devuelve "noop".
  */
 export async function releaseOrder(
   orderId: string,
@@ -147,22 +145,24 @@ export async function releaseOrder(
 ): Promise<"released" | "noop"> {
   const statements: Statement[] = [];
   if (opts.stripeEventId) {
-    statements.push(
-      db.insert(stripeEvents).values({ id: opts.stripeEventId, type: RELEASE_EVENT_TYPE[reason] }),
+    const stripeEventId = opts.stripeEventId;
+    statements.push((tx) =>
+      tx.insert(stripeEvents).values({ id: stripeEventId, type: RELEASE_EVENT_TYPE[reason] }),
     );
   }
   statements.push(
-    db.execute(releaseSeatsSql(orderId)),
-    db.execute(releaseHeldQuantitySql(orderId)),
-    db.delete(ticketHolds).where(eq(ticketHolds.orderId, orderId)),
-    db
-      .update(orders)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), eq(orders.status, "pending")))
-      .returning({ id: orders.id }),
+    (tx) => tx.execute(releaseSeatsSql(orderId)),
+    (tx) => tx.execute(releaseHeldQuantitySql(orderId)),
+    (tx) => tx.delete(ticketHolds).where(eq(ticketHolds.orderId, orderId)),
+    (tx) =>
+      tx
+        .update(orders)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(and(eq(orders.id, orderId), eq(orders.status, "pending")))
+        .returning({ id: orders.id }),
   );
   try {
-    const results = await db.batch(statements as [Statement, ...Statement[]]);
+    const results = await runAtomic(statements);
     const cancelled = results[results.length - 1] as { id: string }[];
     return cancelled.length > 0 ? "released" : "noop";
   } catch (error) {
@@ -171,7 +171,7 @@ export async function releaseOrder(
   }
 }
 
-/** Pasa la orden a paid solo si sigue pending; si no, divide por cero y aborta el batch completo. */
+/** Pasa la orden a paid solo si sigue pending; si no, divide por cero y aborta la transacción completa. */
 function markPaidSql(orderId: string, paymentIntentId: string) {
   return sql`with upd as (
     update orders set status = 'paid', stripe_payment_intent_id = ${paymentIntentId}, updated_at = now()
@@ -191,7 +191,7 @@ async function isEventRecorded(stripeEventId: string): Promise<boolean> {
 
 /**
  * Confirma el pago: orden pending -> paid, asientos held -> sold, entradas y borrado de holds, junto con el
- * registro del evento, en un batch. "duplicate": evento ya procesado; "not_pending": la orden ya no admite pago.
+ * registro del evento, en una transacción. "duplicate": evento ya procesado; "not_pending": la orden ya no admite pago.
  */
 export async function finalizePaidOrder(args: {
   orderId: string;
@@ -236,16 +236,16 @@ export async function finalizePaidOrder(args: {
   });
 
   const statements: Statement[] = [
-    db.insert(stripeEvents).values({ id: args.stripeEventId, type: "checkout.session.completed" }),
-    db.execute(markPaidSql(orderId, args.paymentIntentId)),
+    (tx) => tx.insert(stripeEvents).values({ id: args.stripeEventId, type: "checkout.session.completed" }),
+    (tx) => tx.execute(markPaidSql(orderId, args.paymentIntentId)),
     ...(seatIds.length > 0
-      ? [db.execute(claimSeatsSql(seatIds, { from: "held", to: "sold" }))]
+      ? [(tx: Parameters<Statement>[0]) => tx.execute(claimSeatsSql(seatIds, { from: "held", to: "sold" }))]
       : []),
-    ...chunkRows(ticketRows).map((chunk) => db.insert(tickets).values(chunk)),
-    db.delete(ticketHolds).where(eq(ticketHolds.orderId, orderId)),
+    ...chunkRows(ticketRows).map((chunk): Statement => (tx) => tx.insert(tickets).values(chunk)),
+    (tx) => tx.delete(ticketHolds).where(eq(ticketHolds.orderId, orderId)),
   ];
   try {
-    await db.batch(statements as [Statement, ...Statement[]]);
+    await runAtomic(statements);
   } catch (error) {
     if (isDivisionByZero(error)) return "not_pending";
     if (isUniqueViolation(error) && (await isEventRecorded(args.stripeEventId))) return "duplicate";

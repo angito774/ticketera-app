@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import { db } from "@/db";
+import { runAtomic } from "@/db/atomic";
 import { events, orders, organizations, settlements } from "@/db/schema";
 import { computeApplicationFee, parseFeeConfig } from "@/lib/application-fee";
 import { isDivisionByZero, isUniqueViolation } from "@/lib/pg-errors";
@@ -283,18 +284,19 @@ export async function settleEvent(
     const summary = summarizeSettlement(ctx.unsettled, config);
     const settlementId = randomUUID();
     try {
-      await db.batch([
-        db.insert(settlements).values({
-          id: settlementId,
-          eventId,
-          organizationId: ctx.organizationId,
-          grossAmount: summary.gross,
-          feeAmount: summary.fee,
-          payoutAmount: summary.payout,
-          status: "pending",
-          attempts: 1,
-        }),
-        db.execute(claimOrdersSql(eventId, settlementId, summary.perOrderFee)),
+      await runAtomic([
+        (tx) =>
+          tx.insert(settlements).values({
+            id: settlementId,
+            eventId,
+            organizationId: ctx.organizationId,
+            grossAmount: summary.gross,
+            feeAmount: summary.fee,
+            payoutAmount: summary.payout,
+            status: "pending",
+            attempts: 1,
+          }),
+        (tx) => tx.execute(claimOrdersSql(eventId, settlementId, summary.perOrderFee)),
       ]);
     } catch (error) {
       if (isUniqueViolation(error)) {

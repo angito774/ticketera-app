@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+coverage
+.git
+.github
+.claude
+docs
+design-system
+*.md
+.env
+.env.*
+npm-debug.log*
+*.tsbuildinfo
+Dockerfile
+.dockerignore

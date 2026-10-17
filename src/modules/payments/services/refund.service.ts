@@ -1,9 +1,9 @@
 import { and, asc, count, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import { z } from "zod";
 
 import { db } from "@/db";
+import { runAtomic, type Statement } from "@/db/atomic";
 import { events, notifications, orderItems, orders, organizations, settlements, tickets, users } from "@/db/schema";
 import { sendEmail } from "@/lib/email";
 import { isDivisionByZero } from "@/lib/pg-errors";
@@ -24,7 +24,6 @@ import {
 } from "@/modules/payments/services/refund.mapping";
 import type { CancelledEventRow } from "@/modules/payments/types/payments-admin.types";
 
-type Statement = BatchItem<"pg">;
 type BatchResult = { processed: number; failed: number; remaining: number };
 
 const NOT_FOUND = "Orden no encontrada";
@@ -116,9 +115,9 @@ export async function getRefundPreview(
 }
 
 /**
- * Paso (1) de AC-6: un solo batch (transacción) que reclama la orden (paid -> refunded), cancela sus entradas
+ * Paso (1) de AC-6: una sola transacción que reclama la orden (paid -> refunded), cancela sus entradas
  * y, si el evento sigue publicado, devuelve el inventario. Invariante: la primera sentencia bloquea la fila
- * de la orden (`for update`) y divide por cero (aborta todo el batch) si ya no está paid, fue liquidada o
+ * de la orden (`for update`) y divide por cero (aborta toda la transacción) si ya no está paid, fue liquidada o
  * tiene entradas canjeadas. Al mantener el bloqueo hasta el commit, una liquidación o un segundo reembolso
  * concurrente espera y, al reevaluar, ya no ve la orden `paid`: nunca se reembolsa y liquida el mismo pago,
  * ni se decrementa `quantity_sold` dos veces. `releaseSoldSql` solo actúa mientras la orden sigue `paid`,
@@ -136,28 +135,30 @@ async function claimOrderForRefund(orderId: string, returnInventory: boolean): P
       for update of o
     ) locked
   )`;
-  const statements: Statement[] = [db.execute(guard)];
-  if (returnInventory) statements.push(db.execute(releaseSoldSql(orderId)));
+  const statements: Statement[] = [(tx) => tx.execute(guard)];
+  if (returnInventory) statements.push((tx) => tx.execute(releaseSoldSql(orderId)));
   statements.push(
-    db
-      .update(tickets)
-      .set({ status: "cancelled" })
-      .where(
-        and(
-          eq(tickets.status, "valid"),
-          inArray(
-            tickets.orderItemId,
-            db.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.orderId, orderId)),
+    (tx) =>
+      tx
+        .update(tickets)
+        .set({ status: "cancelled" })
+        .where(
+          and(
+            eq(tickets.status, "valid"),
+            inArray(
+              tickets.orderItemId,
+              db.select({ id: orderItems.id }).from(orderItems).where(eq(orderItems.orderId, orderId)),
+            ),
           ),
         ),
-      ),
-    db
-      .update(orders)
-      .set({ status: "refunded", refundedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), eq(orders.status, "paid"), isNull(orders.settlementId))),
+    (tx) =>
+      tx
+        .update(orders)
+        .set({ status: "refunded", refundedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(orders.id, orderId), eq(orders.status, "paid"), isNull(orders.settlementId))),
   );
   try {
-    await db.batch(statements as [Statement, ...Statement[]]);
+    await runAtomic(statements);
   } catch (error) {
     if (isDivisionByZero(error)) throw new RefundRuleError("La orden ya no es reembolsable");
     throw error;

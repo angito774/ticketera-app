@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { and, eq, inArray, like } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import { db } from "@/db";
+import { runAtomic, type Statement } from "@/db/atomic";
 import {
   categories,
   eventSeats,
@@ -35,16 +35,13 @@ import {
   type ZoneInfo,
 } from "@/modules/organizer/services/event-write.mapping";
 
-type Statement = BatchItem<"pg">;
-
 const NOT_FOUND = "Evento no encontrado";
 const DUPLICATE_TITLE = "Ya existe un evento con ese nombre";
 const CHANGED_PAGE = "El evento cambió mientras lo editabas; recarga la página";
 const CHANGED_RETRY = "El evento cambió, vuelve a intentarlo";
 
 async function runBatch(statements: Statement[]): Promise<void> {
-  if (statements.length === 0) return;
-  await db.batch(statements as [Statement, ...Statement[]]);
+  await runAtomic(statements);
 }
 
 async function translate<T>(fn: () => Promise<T>): Promise<T> {
@@ -124,8 +121,8 @@ async function tierStatements(
     }),
   );
   return [
-    db.insert(ticketTypes).values(rows),
-    ...chunkRows(seatRows).map((chunk) => db.insert(eventSeats).values(chunk)),
+    (tx) => tx.insert(ticketTypes).values(rows),
+    ...chunkRows(seatRows).map((chunk): Statement => (tx) => tx.insert(eventSeats).values(chunk)),
   ];
 }
 
@@ -167,24 +164,25 @@ export async function createEvent(
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const slug = nextSlug(base, await takenSlugs(base));
       const statements: Statement[] = [
-        db.insert(events).values({
-          id: eventId,
-          organizationId: input.organizationId,
-          venueId: columns.venueId,
-          categoryId: columns.categoryId,
-          title: input.title.trim(),
-          slug,
-          description: input.description,
-          coverImageUrl: input.coverImageUrl,
-          startsAt: columns.startsAt,
-          status: "draft",
-          ...featured,
-        }),
+        (tx) =>
+          tx.insert(events).values({
+            id: eventId,
+            organizationId: input.organizationId,
+            venueId: columns.venueId,
+            categoryId: columns.categoryId,
+            title: input.title.trim(),
+            slug,
+            description: input.description,
+            coverImageUrl: input.coverImageUrl,
+            startsAt: columns.startsAt,
+            status: "draft",
+            ...featured,
+          }),
         ...tierStmts,
       ];
       if (input.mode === "publish") {
-        statements.push(
-          db.update(events).set({ status: "published" }).where(eq(events.id, eventId)),
+        statements.push((tx) =>
+          tx.update(events).set({ status: "published" }).where(eq(events.id, eventId)),
         );
       }
       try {
@@ -240,15 +238,16 @@ export async function updateEvent(
     if (current.status === "published") {
       assertPublishedText(input);
       await runBatch([
-        db
-          .update(events)
-          .set({
-            title: input.title.trim(),
-            description: input.description,
-            coverImageUrl: input.coverImageUrl,
-            ...featured,
-          })
-          .where(and(eq(events.id, id), eq(events.status, "published"))),
+        (tx) =>
+          tx
+            .update(events)
+            .set({
+              title: input.title.trim(),
+              description: input.description,
+              coverImageUrl: input.coverImageUrl,
+              ...featured,
+            })
+            .where(and(eq(events.id, id), eq(events.status, "published"))),
       ]);
       return;
     }
@@ -268,25 +267,26 @@ export async function updateEvent(
     });
 
     const statements: Statement[] = [
-      db.execute(draftGuardSql(id)),
-      db
-        .update(events)
-        .set({
-          title: input.title.trim(),
-          categoryId: columns.categoryId,
-          description: input.description,
-          startsAt: columns.startsAt,
-          venueId: columns.venueId,
-          coverImageUrl: input.coverImageUrl,
-          ...featured,
-        })
-        .where(and(eq(events.id, id), eq(events.status, "draft"))),
-      db.delete(ticketTypes).where(eq(ticketTypes.eventId, id)),
+      (tx) => tx.execute(draftGuardSql(id)),
+      (tx) =>
+        tx
+          .update(events)
+          .set({
+            title: input.title.trim(),
+            categoryId: columns.categoryId,
+            description: input.description,
+            startsAt: columns.startsAt,
+            venueId: columns.venueId,
+            coverImageUrl: input.coverImageUrl,
+            ...featured,
+          })
+          .where(and(eq(events.id, id), eq(events.status, "draft"))),
+      (tx) => tx.delete(ticketTypes).where(eq(ticketTypes.eventId, id)),
       ...(await tierStatements(id, tierRows, zones)),
     ];
     if (input.mode === "publish") {
-      statements.push(
-        db
+      statements.push((tx) =>
+        tx
           .update(events)
           .set({ status: "published" })
           .where(and(eq(events.id, id), eq(events.status, "draft"))),

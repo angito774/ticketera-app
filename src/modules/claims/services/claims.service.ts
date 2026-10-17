@@ -12,7 +12,7 @@ export function formatClaimCode(number: number, year: number): string {
   return `LR-${year}-${String(number).padStart(6, "0")}`;
 }
 
-// Entre este COUNT y el INSERT hay una ventana de carrera (neon-http no tiene transacciones):
+// Entre este COUNT y el INSERT hay una ventana de carrera (se podría resolver con una transacción):
 // el tope por correo es una barrera simple, no una garantía estricta.
 export async function countRecentClaimsByEmail(email: string, now: Date = new Date()): Promise<number> {
   const since = new Date(now.getTime() - DAY_MS);

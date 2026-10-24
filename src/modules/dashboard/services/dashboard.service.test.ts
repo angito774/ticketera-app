@@ -44,6 +44,7 @@ function user(overrides: Partial<CurrentUser>): CurrentUser {
     role: "admin",
     isSuperAdmin: false,
     memberships: [],
+    impersonatedBy: null,
     ...overrides,
   };
 }

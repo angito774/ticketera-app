@@ -28,7 +28,7 @@ export function PurchaseHeader({
 
   return (
     <header
-      className={cn("sticky top-0 z-40 border-b bg-background", className)}
+      className={cn("sticky top-[var(--impersonation-banner-h,0px)] z-40 border-b bg-background", className)}
     >
       {/* Escritorio: logo · pasos · compra segura */}
       <div className="mx-auto hidden h-19 max-w-7xl items-center justify-between gap-6 px-8 lg:flex">

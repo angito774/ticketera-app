@@ -117,17 +117,17 @@ export function DashboardShell({ sections, user, children }: DashboardShellProps
   const closeMenu = () => menuRef.current?.close();
 
   return (
-    <div className="min-h-screen bg-muted lg:pl-68">
+    <div className="min-h-[calc(100vh-var(--impersonation-banner-h,0px))] bg-muted lg:pl-68">
       <aside
         aria-label="Barra lateral del panel"
-        className="fixed inset-y-0 left-0 hidden w-68 flex-col gap-8 border-r bg-background p-5 lg:flex"
+        className="fixed top-[var(--impersonation-banner-h,0px)] bottom-0 left-0 hidden w-68 flex-col gap-8 border-r bg-background p-5 lg:flex"
       >
         <Brand />
         <Navigation sections={sections} pathname={pathname} />
         <Account name={user.name} roleLabel={user.roleLabel} />
       </aside>
 
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
+      <header className="sticky top-[var(--impersonation-banner-h,0px)] z-40 flex h-16 items-center justify-between border-b bg-background px-4 lg:hidden">
         <Brand />
         <button
           type="button"

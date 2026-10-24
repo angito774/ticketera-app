@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, VenetianMask } from "lucide-react";
 
 import { ResultBanner } from "@/components/result-banner";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { DeleteMemberDialog } from "@/modules/admin/components/delete-member-dialog";
+import { ImpersonateDialog } from "@/modules/admin/components/impersonate-dialog";
 import { MemberFormDialog } from "@/modules/admin/components/member-form-dialog";
 import { displayName, RoleBadge, StatusLabel, UserCell } from "@/modules/admin/components/user-identity";
 import type { ManageableOrganization, MemberListRow } from "@/modules/admin/services/member-list.service";
@@ -16,9 +17,12 @@ import type { ManageableOrganization, MemberListRow } from "@/modules/admin/serv
 interface MembersTableProps {
   rows: MemberListRow[];
   organizations: ManageableOrganization[];
+  canImpersonate: boolean;
+  currentUserId: string;
 }
 
 type DialogState =
+  | { type: "impersonate"; row: MemberListRow }
   | { type: "create" }
   | { type: "edit"; row: MemberListRow }
   | { type: "delete"; row: MemberListRow }
@@ -28,15 +32,38 @@ const NOT_EDITABLE_TITLE = "No tienes permiso sobre este usuario";
 
 interface RowActionsProps {
   row: MemberListRow;
+  canImpersonate: boolean;
+  isSelf: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onImpersonate: () => void;
 }
 
-function RowActions({ row, onEdit, onDelete }: RowActionsProps) {
+function impersonateTitle(row: MemberListRow, isSelf: boolean, name: string) {
+  if (isSelf) return "No puedes impersonarte a ti mismo";
+  if (row.isSuperAdmin) return "No se puede impersonar a un super admin";
+  return `Impersonar a ${name}`;
+}
+
+function RowActions({ row, canImpersonate, isSelf, onEdit, onDelete, onImpersonate }: RowActionsProps) {
   const name = displayName(row);
   const title = row.editable ? undefined : NOT_EDITABLE_TITLE;
   return (
     <div className="flex items-center gap-1">
+      {canImpersonate && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-11 md:size-10"
+          aria-label={`Impersonar a ${name}`}
+          title={impersonateTitle(row, isSelf, name)}
+          disabled={isSelf || row.isSuperAdmin}
+          onClick={onImpersonate}
+        >
+          <VenetianMask />
+        </Button>
+      )}
       <Button
         type="button"
         variant="ghost"
@@ -65,7 +92,7 @@ function RowActions({ row, onEdit, onDelete }: RowActionsProps) {
   );
 }
 
-export function MembersTable({ rows, organizations }: MembersTableProps) {
+export function MembersTable({ rows, organizations, canImpersonate, currentUserId }: MembersTableProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [message, setMessage] = useState<{ text: string; tone: "ok" | "error" } | null>(null);
 
@@ -123,8 +150,11 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
                     <TableCell>
                       <RowActions
                         row={row}
+                        canImpersonate={canImpersonate}
+                        isSelf={row.userId === currentUserId}
                         onEdit={() => setDialog({ type: "edit", row })}
                         onDelete={() => setDialog({ type: "delete", row })}
+                        onImpersonate={() => setDialog({ type: "impersonate", row })}
                       />
                     </TableCell>
                   </TableRow>
@@ -140,8 +170,11 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
                   <UserCell fullName={row.fullName} email={row.email} />
                   <RowActions
                     row={row}
+                    canImpersonate={canImpersonate}
+                    isSelf={row.userId === currentUserId}
                     onEdit={() => setDialog({ type: "edit", row })}
                     onDelete={() => setDialog({ type: "delete", row })}
+                    onImpersonate={() => setDialog({ type: "impersonate", row })}
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -182,6 +215,9 @@ export function MembersTable({ rows, organizations }: MembersTableProps) {
           onOpenChange={(open) => !open && close()}
           onResult={handleResult}
         />
+      )}
+      {dialog?.type === "impersonate" && (
+        <ImpersonateDialog row={dialog.row} open onOpenChange={(open) => !open && close()} />
       )}
       {dialog?.type === "delete" && (
         <DeleteMemberDialog

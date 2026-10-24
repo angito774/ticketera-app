@@ -6,17 +6,30 @@ import { redactInput } from "./redact-input";
 
 const MAX_ERROR_CODE_LENGTH = 200;
 
-/** Registra una acción del super admin. Devuelve el id de la fila o null si el actor no es super admin. */
+function resolveActor(
+  user: CurrentUser,
+): { actorUserId: string; impersonatedUserId: string | null } | null {
+  if (user.impersonatedBy) {
+    return { actorUserId: user.impersonatedBy.id, impersonatedUserId: user.id };
+  }
+  return user.isSuperAdmin ? { actorUserId: user.id, impersonatedUserId: null } : null;
+}
+
+/**
+ * Registra una acción del super admin. Bajo impersonación el actor es el super admin real
+ * y se audita siempre. Devuelve el id de la fila o null si no hay actor auditable.
+ */
 export async function recordAudit(
   user: CurrentUser,
   entry: AuditEntry,
 ): Promise<string | null> {
-  if (!user.isSuperAdmin) return null;
+  const actor = resolveActor(user);
+  if (!actor) return null;
 
   const [row] = await db
     .insert(adminAuditLog)
     .values({
-      actorUserId: user.id,
+      ...actor,
       action: entry.action,
       targetType: entry.targetType ?? null,
       targetId: entry.targetId ?? null,

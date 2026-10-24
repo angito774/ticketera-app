@@ -22,11 +22,35 @@ import {
   upsertUser,
 } from "@/modules/auth/services/user-sync.service";
 
+export interface ImpersonatedBy {
+  id: string;
+  email: string;
+  fullName: string | null;
+}
+
 export interface CurrentUser extends AuthSubject {
   id: string;
   email: string;
   fullName: string | null;
   role: AppRole;
+  impersonatedBy: ImpersonatedBy | null;
+}
+
+type UserRow = NonNullable<Awaited<ReturnType<typeof loadUser>>>;
+
+function toCurrentUser(
+  row: UserRow,
+  impersonatedBy: ImpersonatedBy | null,
+): CurrentUser {
+  const subject = toAuthSubject(row);
+  return {
+    ...subject,
+    id: row.id,
+    email: row.email,
+    fullName: row.fullName,
+    role: highestRole(subject),
+    impersonatedBy,
+  };
 }
 
 async function loadUser(id: string) {
@@ -41,8 +65,22 @@ async function loadUser(id: string) {
  * puede no haber llegado) o es el correo del super admin sin promover, se sincroniza desde Clerk.
  */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
-  const { userId } = await auth();
+  const { userId, actor } = await auth();
   if (!userId) return null;
+
+  const actorId = actor?.sub;
+  if (actorId) {
+    const [target, realActor] = await Promise.all([
+      loadUser(userId),
+      loadUser(actorId),
+    ]);
+    if (!target || !realActor?.isSuperAdmin) return null;
+    return toCurrentUser(target, {
+      id: realActor.id,
+      email: realActor.email,
+      fullName: realActor.fullName,
+    });
+  }
 
   let row = await loadUser(userId);
   const needsPromotion =
@@ -57,14 +95,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   }
   if (!row) return null;
 
-  const subject = toAuthSubject(row);
-  return {
-    ...subject,
-    id: row.id,
-    email: row.email,
-    fullName: row.fullName,
-    role: highestRole(subject),
-  };
+  return toCurrentUser(row, null);
 });
 
 /** Para server components/actions: redirige al login sin sesión y a la home si falta el permiso. */

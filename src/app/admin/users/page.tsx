@@ -43,7 +43,12 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
         <MemberFilters organizations={organizations} roles={roles} />
       </Suspense>
 
-      <MembersTable rows={list.rows} organizations={organizations} />
+      <MembersTable
+        rows={list.rows}
+        organizations={organizations}
+        canImpersonate={user.isSuperAdmin && !user.impersonatedBy}
+        currentUserId={user.id}
+      />
 
       {list.rows.length > 0 && (
         <Pagination

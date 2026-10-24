@@ -29,6 +29,7 @@ export interface MemberListRow {
   organizationName: string;
   emailVerified: boolean;
   lastSignInAt: string | null;
+  isSuperAdmin: boolean;
   editable: boolean;
   assignableRoles: RoleOption[];
 }
@@ -106,6 +107,7 @@ export async function listMembers(
       organizationName: organizations.name,
       emailVerified: users.emailVerified,
       lastSignInAt: users.lastSignInAt,
+      isSuperAdmin: users.isSuperAdmin,
     })
     .from(organizationMembers)
     .innerJoin(users, eq(users.id, organizationMembers.userId))

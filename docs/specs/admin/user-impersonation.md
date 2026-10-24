@@ -1,8 +1,10 @@
 # Impersonación de usuarios y registro de auditoría del super admin
 
-**Estado**: approved (Fase 1; Fases 2-3 se detallan al cerrar la Fase 1)
-**Aprobado por**: usuario — 2026-10-23 (aceptó todas las propuestas de Preguntas abiertas 1-8)
-**Fase**: 1 de 3
+**Estado**: approved (Fase 1: done, commiteada en 22d1899; Fase 2: aprobada, preguntas 9 y 10 aceptadas como propuestas; Fase 3 se detalla al cerrar la Fase 2)
+**Aprobado por**: usuario — 2026-10-23 (Fase 1) / 2026-10-24 (Fase 2)
+**Fase**: 2 de 3
+
+> Historial: la Fase 1 fue aprobada por el usuario el 2026-10-23 (aceptó todas las propuestas de Preguntas abiertas 1-8). Al detallar la Fase 2 la spec vuelve a `draft` y requiere nueva aprobación humana antes de que un developer empiece las tareas T-7 en adelante.
 
 ## Contexto
 
@@ -41,12 +43,8 @@ Fase 1 (auditoría):
 - **AC-6**: Los tres wrappers existentes (`run()` de `run-action.ts`, `execute()` de `payments-admin.actions.ts`, `run()` de `connect.actions.ts`) delegan en `auditedAction`; los call sites pasan el nombre de acción y el contrato de retorno/errores de cada wrapper no cambia.
 - **AC-7**: `npm run lint`, `npm run test` y `npm run build` pasan; `npm run db:generate` no deja cambios pendientes.
 
-Fases 2-3 (impersonación; se detallarán al cerrar la Fase 1):
+Fase 2 (impersonación): **AC-8 a AC-11 se refinan y amplían en "Fase 2 (detalle)" más abajo** (AC-8 a AC-11, AC-14, AC-15). Fase 3 (sin detallar):
 
-- **AC-8** (tests): `assertCanImpersonate({ actor, target, currentActor })` rechaza: actor no super admin (aunque tenga `members:manage`), target = actor, target super admin, sesión ya impersonada (anidado), target inexistente/no sincronizado en DB. Cada rechazo registra `impersonation.denied` con el motivo.
-- **AC-9**: `startImpersonationAction(targetUserId)` crea un actor token de Clerk con `expiresInSeconds` corto (300) y `sessionMaxDurationInSeconds` explícito (1800 propuesto), registra `impersonation.start` (fail-closed: si no se puede registrar, no se emite el token) y devuelve la URL del ticket.
-- **AC-10**: Durante la sesión impersonada, `getCurrentUser()` devuelve al usuario destino con `impersonatedBy: { id, email, fullName }` (tomado de `auth().actor.sub`); `getCurrentUser` no ejecuta upsert/auto-promoción sobre el destino ni actualiza `lastSignInAt`; toda mutación auditada registra `actor_user_id` = super admin real e `impersonated_user_id` = destino.
-- **AC-11**: "Impersonar" aparece en `RowActions` (tabla y tarjetas móviles) solo para super admin, deshabilitado con `title` en filas propias o de super admin; abre un diálogo de confirmación que nombra al usuario y explica que la sesión del navegador será reemplazada, con "Abrir aquí" y "Copiar enlace" (para ventana privada).
 - **AC-12**: Banner persistente (ámbar, `role="status"`) en `DashboardShell` y en el header público con "Estás actuando como X (correo)" y botón "Dejar de impersonar", que registra `impersonation.end` y cierra la sesión impersonada.
 - **AC-13**: Impersonando, el organizador ve `/organizer`, inicia el onboarding de Stripe (`startOnboardingAction`/`createAccountSessionAction`) y al volver de Stripe (`/organizer?connect=return`) conserva la sesión impersonada. El checkout/pago real queda bloqueado con mensaje mientras `impersonatedBy != null`.
 
@@ -155,9 +153,119 @@ Fases 2-3 (resumen de contratos): `CurrentUser.impersonatedBy: { id: string; ema
 
 ## Fases siguientes
 
-**Fase 2 (impersonación, ≤6 tareas)**: G0: añadir `impersonatedBy` a `CurrentUser` y extender la resolución del actor en `audit.service.ts`. G1: `impersonation.service.ts` + guard + tests (AC-8); `getCurrentUser` lee `auth().actor` y omite upsert/promoción/`lastSignInAt` para sesiones impersonadas (AC-10). G2: `startImpersonationAction`/`endImpersonationAction` y diálogo + botón en `members-table.tsx` (AC-9, AC-11). Notas técnicas: el ticket reemplaza la sesión del navegador y Clerk no ofrece volver a la sesión original sin re-login; mitigación: "Copiar enlace" para ventana privada/otro perfil. El webhook `user.updated` y `/api/auth/sync` no deben tratar al destino como un login real (actualizar `lastSignInAt`) cuando la sesión es impersonada.
+### Fase 2 (detalle): impersonación, sin banner
 
-**Fase 3**: slot `banner` en `DashboardShell` (usado por `src/app/admin/layout.tsx` y `src/app/organizer/layout.tsx`), banner en el header público (`header-account.tsx`/`src/app/layout.tsx`) para clientes impersonados, bloqueo de checkout real, y verificación manual del flujo Stripe Connect (`ConnectStatusCard` redirige a Stripe hosted onboarding y vuelve a `APP_URL/organizer?connect=return`; `ensureConnectedAccount` usa `contact_email: actor.email`, que con impersonación es el del organizador, lo deseado).
+**Decisiones del usuario (resuelven Preguntas abiertas 1-8)**: (1) terminar la impersonación exige re-login del admin; el diálogo ofrece "Abrir aquí" y "Copiar enlace"; (2) checkout/pago real se bloquea mientras se impersona (implementación en Fase 3); (3) fail-open del log salvo `impersonation.start`, fail-closed; (4) ticket 300 s, sesión 1800 s; (5) sin página `/admin/audit`; (6) solo mutaciones del super admin real, incluida la actividad impersonando; (7) sin auditar actor `"system"`; (8) sin retención.
+
+**Hechos verificados en `node_modules`**:
+- `@clerk/shared` `authObject.d.ts`: el auth object de sesión tiene `actor: ActClaim | undefined`; `ActClaim = { sub: string; type?: 'agent' }` (jwtv2.d.ts). Se lee con `(await auth()).actor?.sub`. En el auth object no autenticado el actor es `null`; usar `?.` siempre.
+- `@clerk/backend` 3.21.1 `ActorTokenApi.create({ userId, actor: { sub, additionalProperties? }, expiresInSeconds?, sessionMaxDurationInSeconds? })` devuelve `ActorToken` con `url: string | null | undefined` (puede ser nulo: tratar como error) y `id`. `revoke(actorTokenId)` existe.
+- `getCurrentUser` está envuelto en `cache()` de React: la memoización es por request, y el `actor` viene del JWT de esa misma request, por lo que no hay mezcla entre sesión real e impersonada. Ningún cambio de `cache()` es necesario.
+- Los guards (`member-guard.ts`, `listMembers`) comparan contra `actor.id`. Con sesión impersonada `actor.id` = destino, así que las reglas "no a uno mismo / rol asignable" se evalúan sobre el destino (comportamiento deseado: el super admin actúa con los permisos del usuario). Solo auditoría y el guard de impersonación miran `impersonatedBy`.
+
+#### Alcance Fase 2
+
+- **Incluye**: `impersonatedBy` en `CurrentUser`; `getCurrentUser` sin efectos de login real durante la sesión impersonada; resolución del actor real en `recordAudit`; eventos `impersonation.start|end|denied`; guard + servicio; server actions start/end; botón + diálogo en `RowActions` (tabla y tarjetas móviles).
+- **No incluye (Fase 3)**: banner persistente "Estás actuando como X" y botón "Dejar de impersonar" visible en las vistas (por eso en Fase 2 `endImpersonationAction` existe, probada, pero sin punto de entrada de UI), slot `banner` de `DashboardShell`, header público, bloqueo de checkout/pago real, verificación manual del flujo Stripe Connect.
+- Nota de transición: entre Fase 2 y 3 el admin impersonando no tiene botón para terminar; la sesión expira a los 30 min o cierra sesión desde Clerk (`UserButton`). Por eso Fase 2 no debería desplegarse a producción sin Fase 3.
+
+#### Criterios de aceptación (Fase 2)
+
+- **AC-8** (tests): `assertCanImpersonate({ actor, target })` (puro, sobre datos ya cargados) devuelve `{ ok: true }` o `{ ok: false, reason }` con `reason` en `"not_super_admin" | "self" | "target_super_admin" | "nested" | "target_not_found"`. Rechaza: actor no super admin (aunque tenga `members:manage`), `target.id === actor.id`, target super admin, `actor.impersonatedBy != null` (anidado), `target` nulo (inexistente en DB). El orden de evaluación es el listado. Cada rechazo, vía `startImpersonation`, intenta registrar `impersonation.denied` con `metadata.reason`.
+- **AC-9** (tests): `startImpersonationAction(targetUserId)` valida con zod, carga el destino de la DB (sin llamar a Clerk para validar), aplica AC-8, registra `impersonation.start` (fail-closed: si `recordAudit` lanza, no se llama a Clerk y se devuelve error genérico), y recién entonces crea el actor token con `expiresInSeconds: 300` y `sessionMaxDurationInSeconds: 1800` y `actor: { sub: <super admin real> }`. Devuelve `{ ok: true, url }`. Si Clerk falla o `url` es nula, registra un segundo `impersonation.start` con `result: "error"` y devuelve `{ ok: false, error }`. `metadata` del start: `{ expiresAt, sessionMaxDurationInSeconds }` (ISO, calculado por la app).
+- **AC-10** (tests): con `auth().actor?.sub` presente, `getCurrentUser()` devuelve al destino (roles/permisos del destino leídos de DB) con `impersonatedBy: { id, email, fullName }` tomado de la fila del actor en DB; sin actor, `impersonatedBy: null`. En sesión impersonada **no** llama a `currentUser()`, `upsertUser`, `syncRoleMetadata` ni toca `lastSignInAt`/auto-promoción; si el destino o el actor real no existen en DB devuelve `null`. Si el actor ya no es super admin en DB, devuelve `null` (sesión inválida).
+- **AC-11**: `recordAudit` resuelve al actor real en un único punto: si `user.impersonatedBy` → `actorUserId = impersonatedBy.id`, `impersonatedUserId = user.id` y audita siempre (el destino no es super admin); si no, comportamiento de Fase 1 (`user.isSuperAdmin`, `impersonatedUserId = null`). Tests de `audit.service` cubren ambas ramas, y que `auditedAction` registra con ese actor. Los intentos de impersonación de un actor que no es super admin no generan fila (`recordAudit` devuelve `null`); solo `console.warn` (ver Pregunta 9).
+- **AC-14** (tests): `endImpersonationAction()` exige sesión con `impersonatedBy` (si no, `{ ok: false }`), registra `impersonation.end` (fail-open), revoca la sesión actual (`clerkClient().sessions.revokeSession(sessionId)`) y devuelve `{ ok: true }`; el cliente redirige a `/sign-in`. El admin debe volver a iniciar sesión (decisión 1).
+- **AC-15**: UI en `RowActions` (tabla y tarjetas móviles): botón "Impersonar" visible solo si el visor es super admin y no se está impersonando; deshabilitado con `title` en la fila propia o de un super admin. Abre un diálogo (shadcn `Dialog`) que nombra al usuario (nombre y correo), advierte que la sesión del navegador será reemplazada y que habrá que volver a iniciar sesión, y ofrece "Abrir aquí" (`window.location.assign(url)`) y "Copiar enlace" (portapapeles, para ventana privada, con confirmación "Enlace copiado"). Estados de carga y error visibles; el ticket solo se pide al pulsar cualquiera de los dos botones (una URL por acción, no se reutiliza).
+- **AC-16**: Webhook y sync: `/api/auth/sync` no requiere cambios (solo llama `getCurrentUser`, que ya no sincroniza en sesión impersonada, AC-10). El webhook de Clerk (`src/app/api/webhooks/clerk/route.ts`) no recibe el `actor` de la sesión, por lo que no puede distinguirlo; no se modifica (ver Pregunta 10). `npm run lint`, `npm run test` y `npm run build` pasan.
+
+#### Contratos (Fase 2)
+
+```ts
+// src/modules/auth/services/current-user.service.ts
+export interface ImpersonatedBy { id: string; email: string; fullName: string | null }
+export interface CurrentUser extends AuthSubject {
+  id: string; email: string; fullName: string | null; role: AppRole;
+  impersonatedBy: ImpersonatedBy | null;   // nuevo; null fuera de impersonación
+}
+// getCurrentUser: const { userId, actor } = await auth(); const actorId = actor?.sub;
+// Si actorId: loadUser(userId) + loadUser(actorId) (sin currentUser/upsert/sync/promoción) -> ver AC-10.
+// Sin actorId: flujo actual intacto, con impersonatedBy: null.
+
+// src/modules/audit/types/audit.types.ts
+// (sin cambios de forma; las acciones nuevas son strings: "impersonation.start" | "impersonation.end" | "impersonation.denied")
+// src/modules/audit/services/audit.service.ts
+// recordAudit(user, entry): ver AC-11. Inserta impersonatedUserId (columna ya existente en adminAuditLog).
+// `recordAudit` ya lanza si la BD falla; `safeRecord` (fail-open) sigue siendo interno. `impersonation.start` llama a recordAudit directo (fail-closed).
+
+// src/modules/admin/services/impersonation-guard.ts   (puro, patrón de member-guard.ts)
+export type ImpersonationDenyReason =
+  "not_super_admin" | "self" | "target_super_admin" | "nested" | "target_not_found";
+export interface ImpersonationTarget { id: string; isSuperAdmin: boolean }
+export function assertCanImpersonate(input: {
+  actor: CurrentUser; target: ImpersonationTarget | null;
+}): { ok: true } | { ok: false; reason: ImpersonationDenyReason };
+
+// src/modules/admin/services/impersonation.service.ts
+export const ACTOR_TOKEN_TTL_SECONDS = 300;
+export const IMPERSONATION_SESSION_SECONDS = 1800;
+export class ImpersonationError extends Error { constructor(public reason: ImpersonationDenyReason | "audit_failed" | "token_failed") }
+export function startImpersonation(actor: CurrentUser, targetUserId: string): Promise<{ url: string }>; // lanza ImpersonationError
+export function endImpersonation(user: CurrentUser, sessionId: string): Promise<void>;
+
+// src/modules/admin/actions/impersonation.actions.ts  ("use server")
+export type ImpersonationResult = { ok: true; url: string } | { ok: false; error: string };
+export function startImpersonationAction(targetUserId: string): Promise<ImpersonationResult>;
+export function endImpersonationAction(): Promise<{ ok: true } | { ok: false; error: string }>;
+
+// src/modules/admin/services/member-list.service.ts
+// MemberListRow gana: isSuperAdmin: boolean   (del usuario de la fila; para deshabilitar el botón)
+
+// src/modules/admin/components/impersonate-dialog.tsx
+export interface ImpersonateDialogProps {
+  row: Pick<MemberListRow, "userId" | "fullName" | "email">;
+  open: boolean; onOpenChange: (open: boolean) => void;
+}
+// MembersTable gana prop: canImpersonate: boolean (page.tsx: user.isSuperAdmin && !user.impersonatedBy)
+```
+
+Notas de implementación: el helper `run()` de `run-action.ts` no encaja (exige schema y devuelve `ActionResult` de admin); las actions de impersonación tienen su propio `try/catch` y mapean `ImpersonationError.reason` a mensajes en español sin filtrar detalles (`not_found` y `denied` pueden compartir un mensaje genérico). Mensaje de denegación por usuario: "No puedes impersonar a este usuario". `denied` se registra por separado de la fila `start`. Cualquier otro `CurrentUser` construido a mano en tests existentes debe ganar `impersonatedBy: null` (el developer ajusta los helpers de test que fallen el type-check, dentro de los archivos de su tarea o reportando).
+
+#### Reuso (Fase 2)
+
+| Necesidad | Encontrado | Decisión |
+|---|---|---|
+| Lectura del actor Clerk | `auth()` ya usado en `current-user.service.ts`; `actor` en `AuthObject` | reusar, extender `getCurrentUser` |
+| Actor token | `clerkClient().actorTokens` (ya se usa `clerkClient()` en `user-sync.service.ts`) | reusar |
+| Guard de reglas | `member-guard.ts` + `member-guard.test.ts` | reusar el patrón; crear `impersonation-guard.ts` (reglas distintas) |
+| Registro de auditoría | `recordAudit`/`auditedAction` (Fase 1) | extender `recordAudit` (actor real) |
+| Revocar sesión | `sessions.revokeSession` de `@clerk/backend` | reusar (verificar nombre exacto en el d.ts al implementar) |
+| Diálogo | `components/ui/dialog` + `DeleteMemberDialog`/`MemberFormDialog` como patrón | reusar `Dialog`; crear `impersonate-dialog.tsx` (acción no destructiva, flujo distinto) |
+| Botón, iconos | `Button`, `lucide-react` (`UserCheck`/`VenetianMask`) | reusar |
+| Copiar al portapapeles | nada en `src/` (buscado `clipboard`) | `navigator.clipboard.writeText` inline en el diálogo; no se crea utilidad (un solo uso) |
+| Mensaje de resultado | `ResultBanner` | reusar para errores en el diálogo |
+
+#### Plan de tareas (Fase 2)
+
+##### Grupo 0 (serial; contratos compartidos)
+- T-7: `impersonatedBy` en `CurrentUser` y lectura de `auth().actor` — archivos: `src/modules/auth/services/current-user.service.ts`, `src/modules/auth/services/current-user.service.test.ts` (nuevo; mock de `@clerk/nextjs/server`, `@/db`, `user-sync.service`) — tests: sí — cubre: AC-10
+- T-8: `isSuperAdmin` en la fila de miembros — archivos: `src/modules/admin/services/member-list.service.ts` (y su test co-ubicado si existe) — tests: ajustar si existe — cubre: AC-15
+
+##### Grupo 1 (paralelo; depende de T-7)
+- T-9: Resolución del actor real en auditoría — archivos: `src/modules/audit/services/audit.service.ts`, `src/modules/audit/services/audit.service.test.ts` — tests: sí — cubre: AC-11
+- T-10: Guard y servicio de impersonación — archivos: `src/modules/admin/services/impersonation-guard.ts`, `src/modules/admin/services/impersonation-guard.test.ts`, `src/modules/admin/services/impersonation.service.ts`, `src/modules/admin/services/impersonation.service.test.ts` — tests: sí (guard puro; servicio con mocks de `db`, `recordAudit` y `clerkClient`: orden audit-antes-de-token, fail-closed, TTLs 300/1800, url nula, denied) — cubre: AC-8, AC-9, AC-14. Nota: `startImpersonation` usa `recordAudit` con la firma actual; T-9 solo cambia su interior, no la firma (no hay conflicto de orden).
+
+##### Grupo 2 (depende de T-10)
+- T-11: Server actions — archivos: `src/modules/admin/actions/impersonation.actions.ts`, `src/modules/admin/actions/impersonation.actions.test.ts` — tests: sí (sin sesión, no super admin, mapeo de `ImpersonationError`, `end` sin impersonación) — cubre: AC-9, AC-14
+
+##### Grupo 3 (depende de T-8, T-11)
+- T-12: UI — archivos: `src/modules/admin/components/impersonate-dialog.tsx`, `src/modules/admin/components/members-table.tsx`, `src/app/admin/users/page.tsx` — tests: no (el repo no tiene tests de componentes para esta tabla; el reviewer verifica AC-15 por lectura y `build`) — cubre: AC-15, AC-16
+
+#### Fase 3 (resumen; sin detallar)
+
+Slot `banner` en `DashboardShell` (usado por `src/app/admin/layout.tsx` y `src/app/organizer/layout.tsx`) con `ImpersonationBanner` y "Dejar de impersonar" (invoca `endImpersonationAction`); banner en el header público (`header-account.tsx`/`src/app/layout.tsx`) para clientes impersonados; bloqueo de checkout/pago real si `impersonatedBy != null`; verificación manual del flujo Stripe Connect (`ConnectStatusCard` redirige a Stripe y vuelve a `APP_URL/organizer?connect=return`; `ensureConnectedAccount` usa `contact_email: actor.email`, que con impersonación es el del organizador, lo deseado).
+
+**Fase 3 (referencia original)**: slot `banner` en `DashboardShell` (usado por `src/app/admin/layout.tsx` y `src/app/organizer/layout.tsx`), banner en el header público (`header-account.tsx`/`src/app/layout.tsx`) para clientes impersonados, bloqueo de checkout real, y verificación manual del flujo Stripe Connect (`ConnectStatusCard` redirige a Stripe hosted onboarding y vuelve a `APP_URL/organizer?connect=return`; `ensureConnectedAccount` usa `contact_email: actor.email`, que con impersonación es el del organizador, lo deseado).
 
 ## Riesgos
 
@@ -183,4 +291,9 @@ Prioridad media:
 7. **`settleEvent` con actor `"system"`** (cron/webhooks) queda sin auditar al no ser acción de super admin. ¿De acuerdo?
 8. **Nombre de columnas/acciones**: se usa `dominio.verbo` en inglés; sin retención ni purga. ¿Se necesita política de retención?
 
-La implementación de la Fase 2 no debería empezar hasta resolver las preguntas 1-4; la Fase 1 solo depende de la 3 (el comportamiento fail-open propuesto es el supuesto por defecto).
+Las preguntas 1-8 quedaron **resueltas** por el usuario (ver "Decisiones del usuario" en Fase 2). Nuevas, de Fase 2:
+
+9. **Intentos denegados de no-super-admin**: `recordAudit` solo registra actores super admin (alcance de Fase 1), por lo que un admin/organizer que invoque `startImpersonationAction` directamente no deja fila `impersonation.denied`, solo `console.warn`. ¿Se acepta (supuesto por defecto) o se quiere registrar también esos intentos (excepción para `impersonation.denied`)?
+10. **Webhook `user.updated` durante impersonación**: el payload no trae el `actor`. Si Clerk actualiza `last_sign_in_at` del destino al abrir el ticket, el webhook lo reflejará en `lastSignInAt`. No se puede evitar del lado app; supuesto: se acepta y se verifica manualmente en Fase 3. ¿De acuerdo?
+
+La implementación de la Fase 2 no debería empezar hasta que un humano apruebe la spec y se resuelvan las preguntas 9-10 (o se acepten sus supuestos).

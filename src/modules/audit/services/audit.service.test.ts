@@ -46,6 +46,7 @@ describe("recordAudit", () => {
     expect(redactInput).toHaveBeenCalledWith({ password: "x" });
     expect(values).toHaveBeenCalledWith({
       actorUserId: "u_admin",
+      impersonatedUserId: null,
       action: "organization.create",
       targetType: "organization",
       targetId: "o1",
@@ -66,6 +67,23 @@ describe("recordAudit", () => {
   it("declares organizationId as a text column (organizations.id is text)", () => {
     expect(adminAuditLog.organizationId.dataType).toBe("string");
     expect(adminAuditLog.organizationId.columnType).toBe("PgText");
+  });
+
+  it("attributes the row to the real admin when impersonating, even if the target is not super admin", async () => {
+    const impersonating = {
+      ...regular,
+      impersonatedBy: { id: "u_admin", email: "a@x.com", fullName: "Admin" },
+    } as CurrentUser;
+
+    expect(await recordAudit(impersonating, { ...meta, result: "ok" })).toBe("log-1");
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({ actorUserId: "u_admin", impersonatedUserId: "u_org" }),
+    );
+  });
+
+  it("throws when the insert fails", async () => {
+    returning.mockRejectedValue(new Error("db down"));
+    await expect(recordAudit(superAdmin, { ...meta, result: "ok" })).rejects.toThrow("db down");
   });
 
   it("stores null input without calling redactInput when there is none", async () => {
@@ -122,6 +140,22 @@ describe("auditedAction", () => {
   it("does not insert for non super admins but still returns fn's value", async () => {
     expect(await auditedAction(regular, meta, async () => 42)).toBe(42);
     expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("records with the real admin as actor while impersonating", async () => {
+    const impersonating = {
+      ...regular,
+      impersonatedBy: { id: "u_admin", email: "a@x.com", fullName: "Admin" },
+    } as CurrentUser;
+
+    expect(await auditedAction(impersonating, meta, async () => 7)).toBe(7);
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "u_admin",
+        impersonatedUserId: "u_org",
+        result: "ok",
+      }),
+    );
   });
 
   it("is fail-open when recording fails", async () => {

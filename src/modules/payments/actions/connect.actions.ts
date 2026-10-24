@@ -1,6 +1,7 @@
 "use server";
 
 import { AdminError } from "@/modules/admin/services/admin.service";
+import { auditedAction } from "@/modules/audit/services/audit.service";
 import { getCurrentUser } from "@/modules/auth/services/current-user.service";
 import { connectOrganizationInputSchema } from "@/modules/payments/schemas/connect.schema";
 import {
@@ -15,6 +16,7 @@ type Actor = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 const GENERIC_ERROR = "No se pudo completar la operación. Inténtalo de nuevo.";
 
 async function run<T extends object>(
+  action: string,
   raw: unknown,
   operation: (actor: Actor, organizationId: string) => Promise<T>,
 ): Promise<ConnectActionResult<T>> {
@@ -23,7 +25,13 @@ async function run<T extends object>(
   const parsed = connectOrganizationInputSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Organización no encontrada" };
   try {
-    return { ok: true, ...(await operation(actor, parsed.data.organizationId)) };
+    const { organizationId } = parsed.data;
+    const result = await auditedAction(
+      actor,
+      { action, targetType: "organization", targetId: organizationId, organizationId, input: raw },
+      () => operation(actor, organizationId),
+    );
+    return { ok: true, ...result };
   } catch (error) {
     if (error instanceof AdminError) return { ok: false, error: error.message };
     console.error("connect action failed", error instanceof Error ? error.name : "unknown");
@@ -34,11 +42,11 @@ async function run<T extends object>(
 export async function startOnboardingAction(
   raw: unknown,
 ): Promise<ConnectActionResult<{ url: string }>> {
-  return run(raw, createOnboardingLink);
+  return run("connect.start_onboarding", raw, createOnboardingLink);
 }
 
 export async function createAccountSessionAction(
   raw: unknown,
 ): Promise<ConnectActionResult<{ clientSecret: string }>> {
-  return run(raw, createAccountSessionSecret);
+  return run("connect.create_account_session", raw, createAccountSessionSecret);
 }

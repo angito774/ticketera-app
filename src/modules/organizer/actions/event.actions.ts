@@ -36,49 +36,85 @@ function revalidateEventPaths() {
 }
 
 export async function createEventAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(eventSaveSchema, raw, async (actor, input) => {
-    await createEvent(actor, input);
-  });
+  const result = await run(
+    "event.create",
+    eventSaveSchema,
+    raw,
+    async (actor, input) => {
+      await createEvent(actor, input);
+    },
+    (input) => ({ targetType: "event", organizationId: input.organizationId }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }
 
 export async function updateEventAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(eventUpdateSchema, raw, async (actor, { id, ...input }) => {
-    await updateEvent(actor, id, input);
-  });
+  const result = await run(
+    "event.update",
+    eventUpdateSchema,
+    raw,
+    async (actor, { id, ...input }) => {
+      await updateEvent(actor, id, input);
+    },
+    ({ id }) => ({ targetType: "event", targetId: id }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }
 
 export async function setEventFeaturedAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(setFeaturedSchema, raw, async (actor, { id, featured }) => {
-    await setEventFeatured(actor, id, featured);
-  });
+  const result = await run(
+    "event.set_featured",
+    setFeaturedSchema,
+    raw,
+    async (actor, { id, featured }) => {
+      await setEventFeatured(actor, id, featured);
+    },
+    ({ id }) => ({ targetType: "event", targetId: id }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }
 
 export async function deleteEventAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(eventIdSchema, raw, async (actor, { id }) => {
-    await deleteEvent(actor, id);
-  });
+  const result = await run(
+    "event.delete",
+    eventIdSchema,
+    raw,
+    async (actor, { id }) => {
+      await deleteEvent(actor, id);
+    },
+    ({ id }) => ({ targetType: "event", targetId: id }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }
 
 export async function cancelEventAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(cancelEventInputSchema, raw, async (actor, { id, reason, note }) => {
-    await cancelEvent(actor, { id, reason, note });
-  });
+  const result = await run(
+    "event.cancel",
+    cancelEventInputSchema,
+    raw,
+    async (actor, { id, reason, note }) => {
+      await cancelEvent(actor, { id, reason, note });
+    },
+    ({ id }) => ({ targetType: "event", targetId: id }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }
 
 export async function continueEventRefundsAction(raw: unknown): Promise<ActionResult> {
-  const result = await run(eventIdSchema, raw, async (actor, { id }) => {
-    await continueEventRefunds(actor, id);
-  });
+  const result = await run(
+    "event.continue_refunds",
+    eventIdSchema,
+    raw,
+    async (actor, { id }) => {
+      await continueEventRefunds(actor, id);
+    },
+    ({ id }) => ({ targetType: "event", targetId: id }),
+  );
   if (result.ok) revalidateEventPaths();
   return result;
 }

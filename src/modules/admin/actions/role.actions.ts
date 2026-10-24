@@ -13,13 +13,31 @@ import {
 } from "@/modules/admin/services/role.service";
 
 export async function createRoleAction(raw: unknown) {
-  return run(roleCreateSchema, raw, (actor, input) => createRole(actor, input));
+  return run(
+    "role.create",
+    roleCreateSchema,
+    raw,
+    (actor, input) => createRole(actor, input),
+    (input) => ({ targetType: "role", targetId: input.id }),
+  );
 }
 
 export async function updateRoleAction(raw: unknown) {
-  return run(roleUpdateSchema, raw, (actor, input) => updateRole(actor, input));
+  return run(
+    "role.update",
+    roleUpdateSchema,
+    raw,
+    (actor, input) => updateRole(actor, input),
+    (input) => ({ targetType: "role", targetId: input.id }),
+  );
 }
 
 export async function deleteRoleAction(raw: unknown) {
-  return run(roleDeleteSchema, raw, (actor, input) => deleteRole(actor, input.id));
+  return run(
+    "role.delete",
+    roleDeleteSchema,
+    raw,
+    (actor, input) => deleteRole(actor, input.id),
+    (input) => ({ targetType: "role", targetId: input.id }),
+  );
 }

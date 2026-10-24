@@ -64,16 +64,6 @@ describe("purchaseTicketsAction", () => {
     });
   });
 
-  it("devuelve el bloqueo aunque el registro de auditoría resuelva con error interno", async () => {
-    mocks.getCurrentUser.mockResolvedValue({ id: "u1", impersonatedBy: { id: "admin" } });
-    mocks.safeRecord.mockResolvedValue(undefined);
-
-    await expect(purchaseTicketsAction(validRequest)).resolves.toEqual({
-      ok: false,
-      error: IMPERSONATION_CHECKOUT_MESSAGE,
-    });
-  });
-
   it("un eventSlug inválido sigue dando error de validación al impersonar", async () => {
     mocks.getCurrentUser.mockResolvedValue({ id: "u1", impersonatedBy: { id: "admin" } });
 

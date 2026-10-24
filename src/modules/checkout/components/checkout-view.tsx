@@ -13,7 +13,6 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CheckoutForm, checkoutFieldId } from "@/modules/checkout/components/checkout-form";
 import { CheckoutSummary, CheckoutSummaryCollapsible } from "@/modules/checkout/components/checkout-summary";
-import { IMPERSONATION_CHECKOUT_MESSAGE } from "@/modules/checkout/services/checkout-guard";
 import { ReservationNotice } from "@/modules/checkout/components/reservation-notice";
 import {
   EMPTY_CHECKOUT_VALUES,
@@ -22,6 +21,7 @@ import {
   type CheckoutFieldErrors,
   type CheckoutFormValues,
 } from "@/modules/checkout/schemas/checkout.schema";
+import { IMPERSONATION_CHECKOUT_MESSAGE } from "@/modules/checkout/services/checkout-guard";
 import { purchaseTicketsAction } from "@/modules/checkout/actions/purchase.actions";
 import type { EventDetail } from "@/modules/events/types/event.types";
 import { buildPurchaseSummary, usePurchaseStore, type PurchaseSelection } from "@/modules/tickets/store/purchase.store";

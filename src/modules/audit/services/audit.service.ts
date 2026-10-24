@@ -62,7 +62,8 @@ function domainErrorCode(value: unknown): string | null {
     : "DomainError";
 }
 
-async function safeRecord(user: CurrentUser, entry: AuditEntry): Promise<void> {
+/** Fail-open: si el registro falla, loguea el error y no lo propaga. */
+export async function safeRecord(user: CurrentUser, entry: AuditEntry): Promise<void> {
   try {
     await recordAudit(user, entry);
   } catch (error) {

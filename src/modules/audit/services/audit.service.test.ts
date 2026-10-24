@@ -14,7 +14,7 @@ vi.mock("./redact-input", () => ({
 
 import { adminAuditLog } from "@/db/schema/audit-log";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
-import { auditedAction, recordAudit } from "./audit.service";
+import { auditedAction, recordAudit, safeRecord } from "./audit.service";
 import { redactInput } from "./redact-input";
 
 const superAdmin = { id: "u_admin", isSuperAdmin: true } as CurrentUser;
@@ -90,6 +90,22 @@ describe("recordAudit", () => {
     await recordAudit(superAdmin, { ...meta, result: "ok" });
     expect(redactInput).not.toHaveBeenCalled();
     expect(values).toHaveBeenCalledWith(expect.objectContaining({ input: null }));
+  });
+});
+
+describe("safeRecord", () => {
+  it("does not throw and logs with console.error when recordAudit fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    returning.mockRejectedValue(new Error("db down"));
+
+    await expect(safeRecord(superAdmin, { ...meta, result: "ok" })).resolves.toBeUndefined();
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it("records normally when the insert succeeds", async () => {
+    await safeRecord(superAdmin, { ...meta, result: "ok" });
+    expect(values).toHaveBeenCalledTimes(1);
   });
 });
 

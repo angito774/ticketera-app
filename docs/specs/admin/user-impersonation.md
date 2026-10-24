@@ -1,10 +1,10 @@
 # Impersonación de usuarios y registro de auditoría del super admin
 
-**Estado**: approved (Fase 1: done, commiteada en 22d1899; Fase 2: aprobada, preguntas 9 y 10 aceptadas como propuestas; Fase 3 se detalla al cerrar la Fase 2)
-**Aprobado por**: usuario — 2026-10-23 (Fase 1) / 2026-10-24 (Fase 2)
-**Fase**: 2 de 3
+**Estado**: approved (Fase 1: done, commit 22d1899; Fase 2: done, commit a38ddfd; Fase 3: aprobada, Preguntas 11-13 aceptadas como propuestas)
+**Aprobado por**: usuario — 2026-10-23 (Fase 1) / 2026-10-24 (Fases 2 y 3)
+**Fase**: 3 de 3
 
-> Historial: la Fase 1 fue aprobada por el usuario el 2026-10-23 (aceptó todas las propuestas de Preguntas abiertas 1-8). Al detallar la Fase 2 la spec vuelve a `draft` y requiere nueva aprobación humana antes de que un developer empiece las tareas T-7 en adelante.
+> Historial: la Fase 1 fue aprobada por el usuario el 2026-10-23 (aceptó todas las propuestas de Preguntas abiertas 1-8). Al detallar la Fase 2 la spec vuelve a `draft` y requiere nueva aprobación humana antes de que un developer empiece las tareas T-7 en adelante. La Fase 2 fue aprobada el 2026-10-24 (preguntas 9 y 10 aceptadas). Al detallar la Fase 3 la spec vuelve a `draft`: las tareas T-13 en adelante requieren nueva aprobación humana. Las Fases 1 y 2 están implementadas, revisadas (APPROVED) y commiteadas; su contenido no cambia.
 
 ## Contexto
 
@@ -267,6 +267,134 @@ Slot `banner` en `DashboardShell` (usado por `src/app/admin/layout.tsx` y `src/a
 
 **Fase 3 (referencia original)**: slot `banner` en `DashboardShell` (usado por `src/app/admin/layout.tsx` y `src/app/organizer/layout.tsx`), banner en el header público (`header-account.tsx`/`src/app/layout.tsx`) para clientes impersonados, bloqueo de checkout real, y verificación manual del flujo Stripe Connect (`ConnectStatusCard` redirige a Stripe hosted onboarding y vuelve a `APP_URL/organizer?connect=return`; `ensureConnectedAccount` usa `contact_email: actor.email`, que con impersonación es el del organizador, lo deseado).
 
+### Fase 3 (detalle): banner, bloqueo de checkout y verificación del flujo Stripe Connect
+
+Objetivo: que el super admin complete rápido el onboarding de Stripe Connect de organizadores actuando como ellos, con la impersonación siempre visible, sin poder cobrar de verdad y con un final de sesión claro. Esta sección **detalla y supera** el "Fase 3 (resumen)" de arriba (que se conserva como historial). Decisiones del usuario vigentes: terminar exige re-login del admin (revocar la sesión impersonada y redirigir a `/sign-in`); checkout/pago real bloqueado; ticket 300 s / sesión 1800 s; sin `/admin/audit`; sin retención.
+
+#### Hechos verificados en el repo / `node_modules`
+
+- `useAuth()` de `@clerk/nextjs` (tipos en `@clerk/shared` `hooks.d.ts`) expone `actor: ActClaim | null` en el cliente cuando hay sesión, y `useSession().session.expireAt: Date` existe (`session.d.ts`). Por lo tanto el banner puede decidirse **en el cliente, sin DB ni render dinámico**. Comportamiento exacto del claim `act` en el JWT cliente de una sesión creada con actor token: ver verificación manual V-1.
+- `src/app/layout.tsx` hoy es estático (solo `ClerkProvider` + `QueryProvider`); páginas como `/events/[id]/checkout` usan `generateStaticParams`. Un server component en el root layout que llame `auth()`/`getCurrentUser()` lee cookies/headers y volvería **dinámico todo el árbol** (ver `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/cookies.md` y `.../02-guides/keeping-pages-static.md`), además de una consulta a DB por cada página para todo visitante con sesión. Descartado.
+- El actor token de Clerk (`ActorTokenApi.create`) **no admite `redirect_url`**: tras abrir la URL, Clerk redirige a la Home URL configurada en el Dashboard, no a `/organizer`. El super admin navega a `/organizer` desde el sitio (el header público ya muestra "Mis eventos" para el rol del destino).
+- Único punto que crea una sesión de cobro: `purchase.service.ts` → `getStripe().checkout.sessions.create` (llamado solo desde `purchaseTickets`, que solo invoca `purchaseTicketsAction`). No hay PaymentIntents propios; `refund.service.ts` crea reembolsos (no cobros); los webhooks de Stripe no los inicia un usuario. `reserveOrder` (reserva de asientos) corre **antes** de crear la sesión, por eso el bloqueo debe ir antes de `purchaseTickets`, no dentro del `catch` de la sesión.
+- Connect: `/organizer` usa `requirePermission("events:manage")` (permisos del destino: organizador); `connect.service.ts` valida `can(actor, "events:manage", organizationId)` con el destino y crea la cuenta con `contactEmail: actor.email` = **correo del organizador (deseado)**; `return_url`/`refresh_url` = `${APP_URL}/organizer?connect=return|refresh`, rutas bajo `proxy.ts` (`/organizer(.*)` privada) que se sirven con la cookie de sesión de Clerk vigente. Si la sesión impersonada sigue viva al volver de Stripe, se conserva; si expiró, `proxy.ts` redirige a sign-in.
+- `connect.actions.ts` ya audita `connect.start_onboarding` y `connect.create_account_session` con `auditedAction`; con sesión impersonada el actor registrado es el super admin real (AC-11).
+- Webhook de Clerk: `route.ts` → `fromWebhookUser(event.data)` → `upsertUser(fields)` sobrescribe `lastSignInAt` con `last_sign_in_at` del payload para `user.created|updated`. El payload no incluye el `actor`, por lo que no se puede distinguir un login real de uno por ticket. No hay mitigación mínima viable en la app (descartado: ignorar `lastSignInAt` en `user.updated` rompería la columna "Último acceso" de `/admin/users` para logins reales). **Riesgo aceptado y documentado** (Pregunta 10 ya aceptada en Fase 2; se suma verificación V-6). Rastro alterno: `impersonation.start` con su `created_at` y `metadata.expiresAt` permite atribuir un `lastSignInAt` que cae en esa ventana.
+
+#### Alcance Fase 3
+
+- **Incluye**: `ImpersonationBanner` único (cliente) montado en el root layout; offsets CSS para que `DashboardShell`, `Header` y `PurchaseHeader` convivan con él; bloqueo server-side del checkout con auditoría del intento y UX en `checkout-view`; limpieza de `safeRecord`; tests del servicio de Connect; checklist de verificación manual de Stripe Connect.
+- **No incluye**: slot `banner?: ReactNode` en `DashboardShell` (innecesario: un único banner global evita duplicarlo en cada layout; `admin/layout.tsx` y `organizer/layout.tsx` no se tocan); consulta de DB para el banner; página `/admin/audit`; redirección a `/organizer` tras abrir el ticket (Clerk no lo permite); bloquear reembolsos/liquidaciones del panel; "volver al admin" sin re-login.
+
+#### Decisiones
+
+- **D-1 Punto único del banner**: componente cliente en `src/components/impersonation-banner.tsx`, hijo de `ClerkProvider` en `src/app/layout.tsx` (antes de `children`, dentro de `QueryProvider`). Decide con `useAuth().actor` (sin DB), toma el nombre y correo del destino de `useUser()` (el destino es el usuario de la sesión), sin actor devuelve `null`. Costo: cero render dinámico y cero consultas; el banner aparece tras la hidratación de Clerk (parpadeo aceptable, su ausencia nunca habilita nada: la autorización es de servidor). Es **solo UX**; el bloqueo y la auditoría se hacen en servidor con `getCurrentUser().impersonatedBy`.
+- **D-2 Layout/offsets**: el banner es `sticky top-0 z-[60]` en el flujo del `<body>` (flex column). Mide su altura con `ResizeObserver` y publica `--impersonation-banner-h` (px) en `document.documentElement`; al desmontar la elimina. `aside` fijo y headers sticky pasan de `top-0`/`inset-y-0` a `top-[var(--impersonation-banner-h,0px)]` (y `bottom-0` en el `aside`), de modo que sin impersonación el valor es `0px` y nada cambia. El `dialog` del menú móvil es top layer y no necesita offset.
+- **D-3 Terminar**: "Dejar de impersonar" llama `endImpersonationAction()`; si `ok`, `useClerk().signOut({ redirectUrl: "/sign-in" })` y, si `signOut` falla (la sesión ya fue revocada en servidor), `window.location.assign("/sign-in")`. Si `ok: false`, muestra el error en el banner (`role="alert"`) y no redirige.
+- **D-4 Aviso de expiración**: el banner muestra la hora de expiración de la sesión (`session.expireAt`) y, a < 5 min, un aviso "Tu sesión de impersonación está por expirar" (reevaluado cada 30 s). Lógica pura en `src/lib/session-expiry.ts`. Si Stripe hosted onboarding tarda más de 30 min, la sesión expira: al volver a `/organizer?connect=return` el usuario cae en sign-in; la cuenta Connect igual se actualiza por el webhook `account.*`, así que no se pierde progreso en Stripe (V-5).
+- **D-5 Pagos permitidos/bloqueados impersonando**: **bloqueado** `purchaseTicketsAction` (cobro real). **Permitidos**: `startOnboardingAction`, `createAccountSessionAction` (el objetivo del feature) y las acciones de `payments-admin.actions.ts` (liquidación, reintentos, reembolsos): solo funcionan si los permisos del destino las permiten (las reglas se evalúan sobre el destino, ver Fase 2) y todas ya quedan auditadas con el super admin real como actor. Reembolsar/liquidar no cobra al comprador, por eso no se bloquean.
+- **D-6 Bloqueo de checkout**: guard puro `checkoutBlockReason(user)` → `"impersonating" | null`; `purchaseTicketsAction` lo evalúa tras validar el schema y **antes** de `purchaseTickets` (nada se reserva ni se crea en Stripe). Si bloquea, registra `checkout.blocked_impersonation` (`result: "denied"`, `errorCode: "impersonation"`, `targetType: "event"`, `targetId: eventSlug`, fail-open con `safeRecord`) y devuelve `{ ok: false, error: IMPERSONATION_CHECKOUT_MESSAGE }`. `purchaseTickets` queda intacto (la action es su único llamador).
+- **D-7 `safeRecord` único**: se exporta desde `audit.service.ts` y `impersonation.service.ts` deja de tener su copia.
+- **D-8 Cerrar la pestaña**: no hay evento al cerrar el navegador. La sesión expira sola (≤ 1800 s; el ticket no usado, a los 300 s). **No se registra `impersonation.end`**; el fin se deduce de `impersonation.start.metadata` (`expiresAt` del ticket + `sessionMaxDurationInSeconds`). Si el admin vuelve al sitio antes, ve el banner y puede terminar de forma explícita. Aceptado (ya listado en Riesgos).
+- **D-9 Correcciones de contrato de Fase 2** (la implementación ya las cumple; se documentan): `MembersTable` recibe `{ rows, organizations, canImpersonate: boolean, currentUserId: string }` (`currentUserId` = `user.id` del visor, para marcar `isSelf` y deshabilitar el botón en la fila propia). El motivo `nested` del guard es **inalcanzable en la práctica**: con sesión impersonada `actor` es el destino, que nunca es super admin (se rechaza antes por `target_super_admin`), así que `not_super_admin` (orden previo) lo captura; se conserva como defensa en profundidad y no requiere más cambios ni tests.
+
+#### Criterios de aceptación (Fase 3)
+
+Banner (AC-12 refinado):
+
+- **AC-17** (tests): `ImpersonationBanner` no renderiza nada si `useAuth().actor` es `null`/ausente o la sesión no está cargada; con actor renderiza un elemento `role="status"` ámbar con "Estás actuando como {nombre} ({correo})" (nombre = `user.fullName`, con respaldo al correo) y un botón "Dejar de impersonar".
+- **AC-18** (tests): pulsar el botón llama una sola vez a `endImpersonationAction` (deshabilitado y con "Cerrando…" mientras corre); con `{ ok: true }` ejecuta `signOut({ redirectUrl: "/sign-in" })` (y `window.location.assign("/sign-in")` si `signOut` rechaza); con `{ ok: false, error }` muestra el error con `role="alert"` y no redirige.
+- **AC-19**: Un único banner aparece en todas las rutas (sitio público, `/admin`, `/organizer`, checkout) sin duplicarse; `DashboardShell` no gana props. Con banner visible, el `aside` y los headers sticky de `DashboardShell`, `Header` y `PurchaseHeader` quedan debajo de él (offset `--impersonation-banner-h`); sin impersonación el layout es idéntico al actual (variable no definida => `0px`). El root layout sigue sin leer cookies/headers (no pasa a dinámico): `npm run build` mantiene `/events/[id]/checkout` como SSG.
+- **AC-20** (tests): `getSessionExpiryInfo(expireAt, now)` devuelve `{ label, expiringSoon }`: `expiringSoon` verdadero a < 5 min o ya vencida; `label` "HH:MM" local; tolera `undefined`/`null`. El banner muestra la hora y el aviso de expiración (D-4).
+
+Bloqueo de checkout (AC-13 refinado):
+
+- **AC-21** (tests): `purchaseTicketsAction` con `impersonatedBy != null` devuelve `{ ok: false, error: IMPERSONATION_CHECKOUT_MESSAGE }` (español), **no** llama a `purchaseTickets` y registra una vez `checkout.blocked_impersonation` con `result: "denied"` y el actor real (vía `safeRecord`, que ya resuelve `impersonatedBy`); si el registro falla, igualmente devuelve el bloqueo. Sin impersonación el comportamiento es idéntico al actual (el test existente de la ruta feliz/errores sigue pasando o se cubre en el test nuevo). Un `eventSlug` inválido sigue devolviendo el error de validación existente.
+- **AC-22** (tests): `checkoutBlockReason(user)` devuelve `"impersonating"` solo si `user.impersonatedBy` existe, `null` si no hay impersonación o `user` es `null`.
+- **AC-23**: `checkout-view.tsx` con `useAuth().actor` presente deshabilita los dos botones de pago y muestra un aviso (`role="status"`) con `IMPERSONATION_CHECKOUT_MESSAGE`; sin actor no cambia nada. El servidor sigue siendo la barrera real.
+
+Connect de punta a punta (AC-13 refinado):
+
+- **AC-24** (tests): `connect.service.test.ts` (mocks de `db`, `getStripe`, `APP_URL`) verifica: `ensureConnectedAccount` crea la cuenta con `contactEmail` igual al `email` del `CurrentUser` recibido (el organizador, también cuando trae `impersonatedBy`) y con `idempotencyKey` `connect-account-{orgId}`; usa la cuenta existente si ya hay `stripeAccountId`; `createOnboardingLink` pide `refresh_url`/`return_url` `${APP_URL}/organizer?connect=refresh|return`; lanza si `APP_URL` falta; un actor sin `events:manage` sobre esa organización recibe `AdminError("Organización no encontrada")` sin llamar a Stripe.
+- **AC-25** (verificación manual, la hace el humano en Stripe test mode; checklist abajo): el flujo completo funciona y deja filas de auditoría correctas.
+- **AC-26** (limpieza): `safeRecord` se exporta de `audit.service.ts` (test: no lanza si `recordAudit` falla y hace `console.error`); `impersonation.service.ts` lo importa y no define copia; sus tests existentes siguen pasando; `npm run lint`, `npm run test`, `npm run build` pasan.
+
+#### Checklist de verificación manual (AC-25; Stripe test mode, instancia Clerk de desarrollo o producción de prueba)
+
+- V-1: Como super admin, impersona a un organizador desde `/admin/users` ("Abrir aquí"). Tras aterrizar en la Home URL de Clerk aparece el banner ámbar con el nombre y correo del organizador (confirma que `useAuth().actor` llega al cliente). Si el banner **no** aparece, parar: ver Pregunta 11 (alternativa servidor).
+- V-2: El banner aparece (y una sola vez) en `/`, `/events`, `/my-tickets`, `/organizer`, `/admin` (si el destino tiene acceso) y en el checkout; en móvil el menú del panel y el header sticky no quedan tapados.
+- V-3: En `/organizer`, la tarjeta Connect arranca el onboarding (`startOnboardingAction`): la cuenta se crea con el correo del organizador (revisar en el Dashboard de Stripe) y redirige a Stripe hosted onboarding.
+- V-4: Completar el onboarding en Stripe test mode y volver a `/organizer?connect=return`: se sigue viendo el banner (sesión conservada) y el estado Connect pasa a activo (por webhook). Probar también `createAccountSessionAction` (onboarding embebido).
+- V-5: Dejar vencer la sesión (o esperar 30 min) y volver desde Stripe: se redirige a sign-in sin error 500; el aviso de expiración apareció a < 5 min; el estado Connect se actualiza por webhook igualmente.
+- V-6: En la BD, `admin_audit_log` tiene `impersonation.start` y `connect.*` con `actor_user_id` = super admin y `impersonated_user_id` = organizador; comprobar si `users.last_sign_in_at` del organizador cambió por el ticket (riesgo aceptado, Pregunta 10).
+- V-7: Intentar pagar en el checkout impersonando: botón deshabilitado con aviso; forzar la action (p. ej. DevTools) devuelve el mensaje y deja `checkout.blocked_impersonation` con `result = 'denied'`; no se crean pedidos ni sesiones de Stripe.
+- V-8: "Dejar de impersonar": registra `impersonation.end`, revoca la sesión y redirige a `/sign-in`; confirmar que `/sign-in` no reenvía al panel por una sesión revocada residual y que el admin puede volver a entrar.
+- V-9: Cerrar la pestaña sin terminar: tras ≤ 30 min la sesión expira y no hay `impersonation.end` (esperado, D-8).
+
+#### Contratos (Fase 3)
+
+```ts
+// src/lib/session-expiry.ts  (puro)
+export const EXPIRY_WARNING_MS = 5 * 60_000;
+export interface SessionExpiryInfo { label: string | null; expiringSoon: boolean } // label "HH:MM" local; null si no hay fecha
+export function getSessionExpiryInfo(expireAt: Date | null | undefined, now?: Date): SessionExpiryInfo;
+
+// src/components/impersonation-banner.tsx  ("use client"; sin props)
+export function ImpersonationBanner(): JSX.Element | null;
+// Hooks: useAuth() { isLoaded, actor }, useUser() { user }, useSession() { session?.expireAt }, useClerk() { signOut }.
+// Publica --impersonation-banner-h (px) en document.documentElement mientras está montado/visible.
+
+// src/modules/audit/services/audit.service.ts
+export function safeRecord(user: CurrentUser, entry: AuditEntry): Promise<void>; // fail-open: console.error si recordAudit lanza
+
+// src/modules/checkout/services/checkout-guard.ts  (puro, sin imports de servidor)
+export const IMPERSONATION_CHECKOUT_MESSAGE =
+  "No puedes comprar entradas mientras actúas como otro usuario. Termina la impersonación para continuar.";
+export type CheckoutBlockReason = "impersonating";
+export function checkoutBlockReason(user: CurrentUser | null): CheckoutBlockReason | null;
+
+// src/modules/checkout/actions/purchase.actions.ts
+// Sin cambio de tipo PurchaseActionResult. Tras parsear el schema:
+//   if (checkoutBlockReason(actor)) {
+//     await safeRecord(actor!, { action: "checkout.blocked_impersonation", targetType: "event",
+//       targetId: parsed.data.eventSlug, result: "denied", errorCode: "impersonation",
+//       metadata: { reason: "impersonating" } });
+//     return { ok: false, error: IMPERSONATION_CHECKOUT_MESSAGE };
+//   }
+```
+
+Catálogo de auditoría: se suma `checkout.blocked_impersonation` (result `denied`) a la tabla de acciones.
+
+#### Reuso (Fase 3)
+
+| Necesidad | Encontrado | Decisión |
+|---|---|---|
+| Detectar impersonación en el cliente | `useAuth().actor`, `useUser`, `useSession().expireAt` de `@clerk/nextjs` | reusar (sin DB, sin render dinámico) |
+| Terminar impersonación | `endImpersonationAction` (Fase 2) | reusar |
+| Banner / estilo ámbar | `ResultBanner`, `StatusLabel` (ámbar), shadcn `alert` (no instalado) | crear `impersonation-banner.tsx` con las clases ámbar existentes; no se agrega `alert` (YAGNI: un solo uso, necesita altura medida y sticky) |
+| Slot en `DashboardShell` | `dashboard-shell.tsx` | **no** se agrega (banner global único); solo se ajustan offsets |
+| Registro fail-open | `safeRecord` interno en `audit.service.ts` y copia en `impersonation.service.ts` | generalizar: exportar uno y borrar la copia |
+| Guard de pagos | nada (`grep` de `impersonatedBy` en `checkout/` y `payments/`: sin resultados) | crear `checkout-guard.ts` |
+| Auditoría del intento | `recordAudit`/`safeRecord` | reusar |
+| Tests de Connect | `connect-account.adapter.test.ts`, `connect-status.mapping.test.ts` (sin test de `connect.service`) | crear `connect.service.test.ts` |
+| Mock de Clerk en tests de componentes | `footer.test.tsx` (RTL + Vitest ya configurados) | reusar el patrón |
+
+#### Plan de tareas (Fase 3)
+
+##### Grupo 0 (serial; archivos compartidos/globales)
+- T-13: Exportar un único `safeRecord` — archivos: `src/modules/audit/services/audit.service.ts`, `src/modules/audit/services/audit.service.test.ts`, `src/modules/admin/services/impersonation.service.ts`, `src/modules/admin/services/impersonation.service.test.ts` (ajustar el mock de `audit.service` para incluir `safeRecord`) — tests: sí — cubre: AC-26
+- T-14: Helper de expiración y componente del banner — archivos: `src/lib/session-expiry.ts`, `src/lib/session-expiry.test.ts`, `src/components/impersonation-banner.tsx`, `src/components/impersonation-banner.test.tsx` (mock de `@clerk/nextjs` y de `endImpersonationAction`) — tests: sí — cubre: AC-17, AC-18, AC-20
+- T-15: Montaje global y offsets — archivos: `src/app/layout.tsx` (monta `<ImpersonationBanner />` dentro de `QueryProvider`, antes de `children`), `src/components/dashboard/dashboard-shell.tsx`, `src/components/header.tsx`, `src/components/purchase-header.tsx` (cambian `top-0`/`inset-y-0` por `top-[var(--impersonation-banner-h,0px)]`) — tests: no (CSS/composición; el reviewer verifica por lectura y `npm run build` que el checkout sigue SSG; `footer.test.tsx` y otros no se afectan) — cubre: AC-19
+
+##### Grupo 1 (paralelo; disjuntos; dependen de T-13)
+- T-16: Bloqueo server-side del checkout — archivos: `src/modules/checkout/services/checkout-guard.ts`, `src/modules/checkout/services/checkout-guard.test.ts`, `src/modules/checkout/actions/purchase.actions.ts`, `src/modules/checkout/actions/purchase.actions.test.ts` (mock de `getCurrentUser`, `purchaseTickets`, `safeRecord`, `revalidatePath`) — tests: sí — cubre: AC-21, AC-22
+- T-17: Tests del servicio de Connect — archivos: `src/modules/payments/services/connect.service.test.ts` (sin cambios de código de producción; si el test revela un bug, el developer lo reporta como `SPEC_ISSUE`) — tests: sí — cubre: AC-24
+
+##### Grupo 2 (depende de T-16)
+- T-18: UX del checkout impersonando — archivos: `src/modules/checkout/components/checkout-view.tsx` (importa `IMPERSONATION_CHECKOUT_MESSAGE` de `checkout-guard.ts`; `useAuth().actor` deshabilita `canPay` y muestra aviso `role="status"`) — tests: no (el repo no testea esta vista; verificado por lectura y V-7) — cubre: AC-23
+
+AC-25 se cubre con la checklist V-1..V-9 (humano). Fase 3 es la última: no hay fases siguientes.
+
 ## Riesgos
 
 - **Pérdida de la sesión del admin al impersonar** (navegador compartido): ver pregunta 1.
@@ -297,3 +425,23 @@ Las preguntas 1-8 quedaron **resueltas** por el usuario (ver "Decisiones del usu
 10. **Webhook `user.updated` durante impersonación**: el payload no trae el `actor`. Si Clerk actualiza `last_sign_in_at` del destino al abrir el ticket, el webhook lo reflejará en `lastSignInAt`. No se puede evitar del lado app; supuesto: se acepta y se verifica manualmente en Fase 3. ¿De acuerdo?
 
 La implementación de la Fase 2 no debería empezar hasta que un humano apruebe la spec y se resuelvan las preguntas 9-10 (o se acepten sus supuestos).
+
+### Riesgos y preguntas de la Fase 3
+
+Riesgos:
+
+- **Banner dependiente del cliente**: si Clerk no expone `act` en el JWT del cliente, el banner no aparecería (la autorización y el bloqueo de checkout siguen siendo de servidor). Se verifica primero (V-1).
+- **Parpadeo**: el banner aparece tras la hidratación de Clerk y desplaza el contenido (altura medida con `ResizeObserver`).
+- **Aterrizaje tras el ticket**: Clerk redirige a la Home URL, no a `/organizer`; el admin navega manualmente.
+- **Instancia de desarrollo de Clerk**: el flujo de ticket y cookies de sesión puede comportarse distinto que en producción (dominio/cookies de terceros); probar en ambos si es posible.
+- **Expiración a mitad del onboarding en Stripe**: el usuario cae en sign-in al volver; el estado Connect se actualiza por webhook.
+- **`lastSignInAt` del destino** puede reflejar el login por ticket vía webhook (aceptado, V-6).
+- **`useSyncUserOnSignIn`** (`header-account.tsx`) llama `/api/auth/sync` con la sesión impersonada; es inocuo porque `getCurrentUser` no sincroniza en ese caso (AC-10).
+
+Preguntas abiertas (Fase 3):
+
+11. **Banner por cliente vs servidor**: se propone `useAuth().actor` (cero costo, sin dinamizar el layout). Si V-1 muestra que `actor` no llega al cliente, la alternativa es un `GET /api/auth/impersonation` mínimo (sin DB, solo `auth().actor`) consultado por el banner, sin tocar el layout. ¿De acuerdo con la propuesta y el plan B?
+12. **Pagos del panel impersonando**: se proponen permitidos (reembolsos/liquidaciones) por estar auditados y limitados a los permisos del destino. ¿O se prefiere bloquearlos también durante la impersonación?
+13. **`lastSignInAt`**: ¿se acepta el riesgo documentado (sin mitigación en el webhook)?
+
+La implementación de la Fase 3 no debería empezar hasta que un humano apruebe la spec y se resuelvan (o acepten) las preguntas 11-13.

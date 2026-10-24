@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { CircleAlert, Loader2, Lock, Ticket } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -13,6 +13,7 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CheckoutForm, checkoutFieldId } from "@/modules/checkout/components/checkout-form";
 import { CheckoutSummary, CheckoutSummaryCollapsible } from "@/modules/checkout/components/checkout-summary";
+import { IMPERSONATION_CHECKOUT_MESSAGE } from "@/modules/checkout/services/checkout-guard";
 import { ReservationNotice } from "@/modules/checkout/components/reservation-notice";
 import {
   EMPTY_CHECKOUT_VALUES,
@@ -49,6 +50,8 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
     useShallow(({ eventId, quantities, seats }) => ({ eventId, quantities, seats }))
   );
   const { user } = useUser();
+  const { actor } = useAuth();
+  const isImpersonating = Boolean(actor);
 
   const selection = useMemo<PurchaseSelection>(
     () => ({ quantities: purchase.quantities, seats: purchase.seats }),
@@ -150,12 +153,25 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
   }
 
   // El botón no se deshabilita por datos incompletos: al pulsarlo marca en rojo lo que falta.
-  const canPay = !isPaying;
+  const canPay = !isPaying && !isImpersonating;
   const payLabel = `Pagar ${formatPrice(summary.total)}`;
-  const payButton = (buttonClassName: string) => (
+  const impersonationNoticeId = (slot: string) => `checkout-impersonation-notice-${slot}`;
+  const impersonationNotice = (slot: string) =>
+    isImpersonating && (
+      <span
+        id={impersonationNoticeId(slot)}
+        role="status"
+        className="flex items-center justify-center gap-1.5 text-center text-[0.8125rem] font-medium text-muted-foreground"
+      >
+        <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+        {IMPERSONATION_CHECKOUT_MESSAGE}
+      </span>
+    );
+  const payButton = (buttonClassName: string, slot: string) => (
     <button
       type="submit"
       disabled={!canPay}
+      aria-describedby={isImpersonating ? impersonationNoticeId(slot) : undefined}
       className={cn(
         buttonVariants({ variant: "cta" }),
         "rounded-2xl text-base disabled:bg-border disabled:text-muted-foreground disabled:opacity-100",
@@ -225,14 +241,16 @@ export function CheckoutView({ event, layout, className }: CheckoutViewProps) {
         ticketsHref={ticketsHref}
         action={
           <div className="flex flex-col gap-2">
-            {payButton("h-14")}
+            {payButton("h-14", "summary")}
+            {impersonationNotice("summary")}
             {termsHint}
           </div>
         }
       />
 
       <StickyBottomBar className="flex-col items-stretch gap-1.5">
-        {payButton("h-12 w-full")}
+        {payButton("h-12 w-full", "bar")}
+        {impersonationNotice("bar")}
         {termsHint}
       </StickyBottomBar>
     </form>

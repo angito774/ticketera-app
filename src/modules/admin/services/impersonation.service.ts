@@ -7,7 +7,7 @@ import {
   assertCanImpersonate,
   type ImpersonationDenyReason,
 } from "@/modules/admin/services/impersonation-guard";
-import { recordAudit } from "@/modules/audit/services/audit.service";
+import { recordAudit, safeRecord } from "@/modules/audit/services/audit.service";
 import type { AuditEntry } from "@/modules/audit/types/audit.types";
 import type { CurrentUser } from "@/modules/auth/services/current-user.service";
 
@@ -20,15 +20,6 @@ export class ImpersonationError extends Error {
   ) {
     super(reason);
     this.name = "ImpersonationError";
-  }
-}
-
-/** Fail-open: un fallo del log no interrumpe el flujo. */
-async function safeRecord(user: CurrentUser, entry: AuditEntry): Promise<void> {
-  try {
-    await recordAudit(user, entry);
-  } catch (error) {
-    console.error("[audit] no se pudo registrar", entry.action, error);
   }
 }
 

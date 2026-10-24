@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
   recordAudit: vi.fn(),
+  safeRecord: vi.fn(),
   create: vi.fn(),
   revokeSession: vi.fn(),
 }));
@@ -12,6 +13,7 @@ vi.mock("@/db", () => ({
 }));
 vi.mock("@/modules/audit/services/audit.service", () => ({
   recordAudit: mocks.recordAudit,
+  safeRecord: mocks.safeRecord,
 }));
 vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: async () => ({
@@ -45,6 +47,13 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   mocks.findFirst.mockResolvedValue({ id: "u_target", isSuperAdmin: false });
   mocks.recordAudit.mockResolvedValue("audit-id");
+  mocks.safeRecord.mockImplementation(async (user: unknown, entry: unknown) => {
+    try {
+      await mocks.recordAudit(user, entry);
+    } catch {
+      // fail-open, igual que el safeRecord real
+    }
+  });
   mocks.create.mockResolvedValue({ id: "act_1", url: "https://clerk.test/ticket" });
 });
 
